@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoHistory - Historical Image Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="app">
+        <!-- Map Container -->
+        <div id="mapContainer" class="map-container"></div>
+        
+        <!-- Instructions Overlay -->
+        <div class="instructions">
+            <span>🗺️ Click anywhere on the map to place a pin</span>
+        </div>
+        
+        <!-- Coordinates Display -->
+        <div id="coordsDisplay" class="coords-display">
+            <span id="coordsText"></span>
+        </div>
+        
+        <!-- Control Panel -->
+        <div id="controlPanel" class="control-panel open">
+            <button id="panelToggle" class="panel-toggle">◀</button>
+            
+            <div class="panel-content">
+                <h1>🌍 GeoHistory</h1>
+                <p class="subtitle">Generate historical images from any place and time</p>
+                
+                <!-- Pin Info -->
+                <div id="pinInfo" class="pin-info" style="display: none;">
+                    <h3>📍 Pin Location</h3>
+                    <p id="pinCoords" class="coords"></p>
+                    <p id="pinTimezone" class="timezone"></p>
+                    <button id="btnClearPin" class="btn-clear">Remove Pin</button>
+                </div>
+                
+                <div id="noPin" class="no-pin">
+                    <p>Click on the globe to place a pin</p>
+                </div>
+                
+                <!-- Date Selection -->
+                <div class="date-section">
+                    <h3>📅 Select Date</h3>
+                    
+                    <div class="date-row">
+                        <label>
+                            Month:
+                            <select id="monthSelect"></select>
+                        </label>
+                    </div>
+                    
+                    <div class="date-row">
+                        <label>
+                            Day:
+                            <select id="daySelect"></select>
+                        </label>
+                    </div>
+                    
+                    <div class="date-row year-row">
+                        <label>
+                            Year:
+                            <input type="number" id="yearInput" value="33" min="1" max="9999">
+                        </label>
+                        <select id="eraSelect">
+                            <option value="CE">CE</option>
+                            <option value="BCE">BCE</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Time Selection -->
+                <div class="time-section">
+                    <h3>🕐 Select Time (Local)</h3>
+                    <div class="time-row">
+                        <label>
+                            Hour:
+                            <select id="hourSelect"></select>
+                        </label>
+                    </div>
+                    <p id="utcTime" class="utc-time" style="display: none;"></p>
+                </div>
+                
+                <!-- Generate Button -->
+                <button id="btnGenerate" class="btn-generate" disabled>
+                    ✨ Generate Historical Image
+                </button>
+                
+                <!-- Error Display -->
+                <div id="errorMessage" class="error-message" style="display: none;">
+                    <p id="errorText"></p>
+                </div>
+                
+                <!-- Prompt Display -->
+                <div id="promptDisplay" class="prompt-display" style="display: none;">
+                    <h4>Prompt Sent:</h4>
+                    <p id="promptText"></p>
+                </div>
+                
+                <!-- Generated Image -->
+                <div id="generatedImage" class="generated-image" style="display: none;">
+                    <h3>🖼️ Generated Image</h3>
+                    <img id="resultImage" src="" alt="Generated historical scene" title="Click to view fullscreen">
+                    <a id="downloadLink" href="" download class="btn-download">
+                        💾 Download Image
+                    </a>
+                </div>
+                
+                <!-- Response Text -->
+                <div id="responseText" class="response-text" style="display: none;">
+                    <h4>AI Response:</h4>
+                    <p id="responseContent"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Image Preview Modal -->
+        <div id="imagePreviewModal" class="image-preview-modal">
+            <span id="modalClose" class="modal-close">&times;</span>
+            <img id="modalImage" class="modal-content" src="" alt="Full size preview">
+            <div id="modalCaption" class="modal-caption"></div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Load modular JavaScript files as ES modules -->
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
