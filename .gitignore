@@ -131,3 +131,11 @@ dmypy.json
 # Project specific
 generated_images/
 *.log
+
+# API Keys and Secrets
+*.key
+*.pem
+secrets.json
+config/secrets.py
+.env.*
+!.env.example
