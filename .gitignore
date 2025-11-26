@@ -140,3 +140,6 @@ config/secrets.py
 .env
 .env.*
 !.env.example
+
+# Executable files
+*.exe
