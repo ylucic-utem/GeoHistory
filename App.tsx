@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import GlobeViz from './components/GlobeViz';
 import MapboxViz from './components/MapboxViz';
 import ControlPanel from './components/ControlPanel';
@@ -6,6 +6,7 @@ import ImageResult from './components/ImageResult';
 import ImageGallery from './components/ImageGallery';
 import { Coordinates, DateSelection, GeneratedImageResult } from './types';
 import { generateImageFromPrompt, checkApiKeySelection, requestApiKeySelection } from './services/geminiService';
+import { loadStoredImages, saveGeneratedImage, clearStoredImages } from './services/storageService';
 import { Menu } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -47,6 +48,21 @@ const App: React.FC = () => {
     setViewMode(mobile ? 'map' : 'mapbox');
   }, []);
 
+  // Load stored images on mount
+  useEffect(() => {
+    const loadImages = async () => {
+      try {
+        const storedImages = await loadStoredImages();
+        if (storedImages.length > 0) {
+          setGeneratedImages(storedImages);
+        }
+      } catch (error) {
+        console.error('Failed to load stored images:', error);
+      }
+    };
+    loadImages();
+  }, []);
+
   const formatMonth = (m: number) => {
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     return months[m - 1] || "January";
@@ -85,9 +101,18 @@ const App: React.FC = () => {
 
       // 2. Generate
       const imageUrl = await generateImageFromPrompt(prompt);
-      const newImageResult: GeneratedImageResult = { imageUrl, prompt };
-      setGeneratedImages(prev => [...prev, newImageResult]); 
+      const newImageResult: GeneratedImageResult = { 
+        imageUrl, 
+        prompt,
+        location: selectedLocation,
+        date: selectedDate,
+        time: selectedTime
+      };
+      setGeneratedImages(prev => [newImageResult, ...prev]); // Add to front (newest first)
       setSelectedImageForView(newImageResult);
+      
+      // Save to persistent storage
+      await saveGeneratedImage(newImageResult, selectedLocation, selectedDate, selectedTime);
       
       // Optionally close panel on mobile after generation to show result
       if (window.innerWidth < 768) {
@@ -110,9 +135,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleClearGallery = useCallback(() => {
+  const handleClearGallery = useCallback(async () => {
     setGeneratedImages([]);
     setSelectedImageForView(null);
+    await clearStoredImages();
   }, []);
 
   return (
