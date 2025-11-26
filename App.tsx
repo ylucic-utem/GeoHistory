@@ -21,15 +21,31 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageResult[]>([]);
   const [selectedImageForView, setSelectedImageForView] = useState<GeneratedImageResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'map' | 'mapbox'>('mapbox');
+  const [viewMode, setViewMode] = useState<'map' | 'mapbox'>('map'); // Default to map, will update on mount
+  const [isMobile, setIsMobile] = useState(true); // Assume mobile first for safety
   
   // Panel starts open on desktop, closed on mobile
-  const [isControlPanelOpen, setIsControlPanelOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 768;
-    }
-    return false;
-  });
+  // Use useEffect to safely check window dimensions after mount
+  const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
+  
+  // Detect mobile device and set initial states
+  React.useEffect(() => {
+    const checkMobile = () => {
+      // Check for mobile using multiple methods for reliability
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+        || window.innerWidth < 768
+        || ('ontouchstart' in window && window.innerWidth < 1024);
+      return isMobileDevice;
+    };
+    
+    const mobile = checkMobile();
+    setIsMobile(mobile);
+    setIsControlPanelOpen(!mobile); // Open panel on desktop
+    
+    // On mobile, always use map view (Leaflet)
+    // On desktop, default to mapbox globe
+    setViewMode(mobile ? 'map' : 'mapbox');
+  }, []);
 
   const formatMonth = (m: number) => {
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -138,6 +154,7 @@ const App: React.FC = () => {
         onToggleOpen={() => setIsControlPanelOpen(prev => !prev)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        isMobile={isMobile}
       />
 
       {/* Floating Toggle Button - Visible only when panel is CLOSED */}

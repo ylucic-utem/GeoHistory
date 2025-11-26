@@ -14,6 +14,7 @@ interface ControlPanelProps {
   onToggleOpen: () => void;
   viewMode: 'map' | 'mapbox';
   onViewModeChange: (mode: 'map' | 'mapbox') => void;
+  isMobile: boolean;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -27,7 +28,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   isOpen,
   onToggleOpen,
   viewMode,
-  onViewModeChange
+  onViewModeChange,
+  isMobile
 }) => {
 
   const formatLat = (lat: number) => {
@@ -85,7 +87,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         {/* Scrollable Body */}
         <div className="p-4 md:p-6 pt-2 overflow-y-auto custom-scrollbar">
           
-          {/* View Mode Selector */}
+          {/* View Mode Selector - Only show on desktop */}
+          {!isMobile && (
           <div className="mb-4">
              <label className="text-xs text-gray-400 uppercase tracking-wider block mb-2">View Mode</label>
              <div className="bg-white/5 p-1 rounded-lg border border-white/10 flex">
@@ -111,6 +114,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </button>
              </div>
           </div>
+          )}
 
           {/* Location Display */}
           <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center space-x-3">

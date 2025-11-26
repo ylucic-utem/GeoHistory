@@ -59,8 +59,47 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
+    <style>
+      /* Fix mobile viewport height issues */
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      /* Use dvh for mobile dynamic viewport height where supported */
+      @supports (height: 100dvh) {
+        #root {
+          height: 100dvh;
+        }
+      }
+    </style>
 </head>
   <body>
+    <!-- Mobile error debugging - shows JS errors visually -->
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        var errorDiv = document.createElement('div');
+        errorDiv.id = 'mobile-error-display';
+        errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;color:white;padding:15px;background:#dc2626;z-index:99999;font-size:12px;font-family:monospace;max-height:50vh;overflow:auto;';
+        errorDiv.innerHTML = '<strong>Error:</strong> ' + msg + '<br><strong>Line:</strong> ' + line + '<br><strong>File:</strong> ' + (url ? url.split('/').pop() : 'unknown');
+        if (document.body) {
+          document.body.insertBefore(errorDiv, document.body.firstChild);
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+          });
+        }
+        return false;
+      };
+      // Also catch unhandled promise rejections
+      window.onunhandledrejection = function(event) {
+        var errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;color:white;padding:15px;background:#dc2626;z-index:99999;font-size:12px;font-family:monospace;';
+        errorDiv.innerHTML = '<strong>Promise Error:</strong> ' + (event.reason ? event.reason.message || event.reason : 'Unknown');
+        document.body.insertBefore(errorDiv, document.body.firstChild);
+      };
+    </script>
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
