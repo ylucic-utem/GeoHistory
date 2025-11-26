@@ -1,0 +1,5 @@
+{
+  "name": "ChronoGlobe",
+  "description": "An interactive 3D globe allowing users to visualize historical moments by selecting location, date, and time to generate AI imagery.",
+  "requestFramePermissions": []
+}

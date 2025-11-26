@@ -1,0 +1,32 @@
+# Prerequisites to run the ChronoGlobe webapp locally
+# This is a Node.js/React application using Vite.
+
+# 1. Node.js (version 16 or higher recommended)
+# Download from https://nodejs.org/
+
+# 2. npm (comes with Node.js)
+
+# 3. Gemini API Key
+# Obtain from https://ai.google.dev/
+# Set as environment variable GEMINI_API_KEY or in .env.local file
+
+# Dependencies (managed via package.json):
+# react: ^19.2.0
+# react-dom: ^19.2.0
+# @google/genai: ^1.30.0
+# lucide-react: ^0.554.0
+# leaflet: 1.9.4
+# three: 0.170.0
+# react-globe.gl: 2.27.2
+# mapbox-gl: 3.17.0-beta.1
+
+# Dev Dependencies:
+# @types/node: ^22.14.0
+# @vitejs/plugin-react: ^5.0.0
+# typescript: ~5.8.2
+# vite: ^6.2.0
+
+# To run locally:
+# 1. npm install
+# 2. Set GEMINI_API_KEY in .env.local
+# 3. npm run dev
