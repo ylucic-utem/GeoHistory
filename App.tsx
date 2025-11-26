@@ -210,9 +210,9 @@ const App: React.FC = () => {
         <ImageResult 
           result={selectedImageForView} 
           onClose={() => setSelectedImageForView(null)}
-          location={selectedLocation}
-          date={selectedDate}
-          time={selectedTime}
+          location={selectedImageForView.location || selectedLocation}
+          date={selectedImageForView.date || selectedDate}
+          time={selectedImageForView.time || selectedTime}
         />
       )}
 
