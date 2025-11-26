@@ -137,6 +137,6 @@ generated_images/
 *.pem
 secrets.json
 config/secrets.py
+.env
 .env.*
 !.env.example
->>>>>>> c24f93d99a9adde5c46af733cb99594b99ee0608
