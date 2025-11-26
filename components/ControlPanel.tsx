@@ -1,6 +1,6 @@
 import React from 'react';
 import { Coordinates, DateSelection } from '../types';
-import { Calendar, Clock, MapPin, Loader2, Image as ImageIcon, X, Globe, Map as MapIcon, Box } from 'lucide-react';
+import { Calendar, Clock, MapPin, Loader2, Image as ImageIcon, X, Map as MapIcon, Box } from 'lucide-react';
 
 interface ControlPanelProps {
   selectedLocation: Coordinates | null;
@@ -12,8 +12,8 @@ interface ControlPanelProps {
   isGenerating: boolean;
   isOpen: boolean;
   onToggleOpen: () => void;
-  viewMode: 'map' | 'globe' | 'mapbox';
-  onViewModeChange: (mode: 'map' | 'globe' | 'mapbox') => void;
+  viewMode: 'map' | 'mapbox';
+  onViewModeChange: (mode: 'map' | 'mapbox') => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -100,16 +100,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <MapIcon className="w-4 h-4" /> Map
                 </button>
                 <button
-                  onClick={() => onViewModeChange('globe')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                    viewMode === 'globe' 
-                      ? 'bg-blue-600 text-white shadow-lg' 
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Globe className="w-4 h-4" /> Globe
-                </button>
-                <button
                   onClick={() => onViewModeChange('mapbox')}
                   className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                     viewMode === 'mapbox' 
@@ -117,7 +107,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Box className="w-4 h-4" /> Mapbox
+                  <Box className="w-4 h-4" /> Mapbox Globe
                 </button>
              </div>
           </div>

@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import GlobeViz from './components/GlobeViz';
-import Globe3DViz from './components/Globe3DViz';
 import MapboxViz from './components/MapboxViz';
 import ControlPanel from './components/ControlPanel';
 import ImageResult from './components/ImageResult';
@@ -22,7 +21,7 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageResult[]>([]);
   const [selectedImageForView, setSelectedImageForView] = useState<GeneratedImageResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'map' | 'globe' | 'mapbox'>('mapbox');
+  const [viewMode, setViewMode] = useState<'map' | 'mapbox'>('mapbox');
   
   // Panel starts open on desktop, closed on mobile
   const [isControlPanelOpen, setIsControlPanelOpen] = useState(() => {
@@ -107,12 +106,6 @@ const App: React.FC = () => {
         <GlobeViz 
           onLocationSelect={setSelectedLocation} 
           selectedLocation={selectedLocation} 
-        />
-      )}
-      {viewMode === 'globe' && (
-        <Globe3DViz
-          onLocationSelect={setSelectedLocation}
-          selectedLocation={selectedLocation}
         />
       )}
       {viewMode === 'mapbox' && (
