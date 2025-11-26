@@ -49,13 +49,17 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
     }
 
     // Card dimensions - optimized for 3:4 image aspect ratio
-    const width = 360;
-    const padding = 20;
+    // Using 2x scale for better quality on retina displays and social media
+    const scale = 2;
+    const baseWidth = 360;
+    const basePadding = 20;
+    const width = baseWidth * scale;
+    const padding = basePadding * scale;
     const imageWidth = width - (padding * 2);
     const imageHeight = Math.round(imageWidth * (4 / 3)); // 3:4 aspect ratio
-    const textAreaHeight = 100; // Space for text and branding
+    const textAreaHeight = 100 * scale; // Space for text and branding
     const height = padding + imageHeight + textAreaHeight + padding;
-    const borderRadius = 20;
+    const borderRadius = 20 * scale;
 
     canvas.width = width;
     canvas.height = height;
@@ -81,13 +85,13 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(padding, imgY, imageWidth, imageHeight, 12);
+      ctx.roundRect(padding, imgY, imageWidth, imageHeight, 12 * scale);
       ctx.clip();
       
       // Calculate aspect ratio to cover the 3:4 frame
-      const scale = Math.max(imageWidth / img.width, imageHeight / img.height);
-      const scaledWidth = img.width * scale;
-      const scaledHeight = img.height * scale;
+      const imgScale = Math.max(imageWidth / img.width, imageHeight / img.height);
+      const scaledWidth = img.width * imgScale;
+      const scaledHeight = img.height * imgScale;
       const offsetX = padding + (imageWidth - scaledWidth) / 2;
       const offsetY = imgY + (imageHeight - scaledHeight) / 2;
       
@@ -95,49 +99,50 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       ctx.restore();
 
       // Text section
-      const textY = imgY + imageHeight + 24;
+      const textY = imgY + imageHeight + (24 * scale);
 
       // Location name (main title)
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = `bold ${20 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
       const locationText = formatCoordinates(data.location.lat, data.location.lng);
       ctx.fillText(locationText, padding, textY);
 
       // Date and time (subtitle)
       ctx.fillStyle = '#b0c4ce';
-      ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = `${14 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
       const dateTimeText = `${formatDate(data.date)} • ${formatTime(data.time)}`;
-      ctx.fillText(dateTimeText, padding, textY + 24);
+      ctx.fillText(dateTimeText, padding, textY + (24 * scale));
 
       // ChronoGlobe branding at bottom
       const brandY = height - padding;
+      const iconSize = 10 * scale;
       
       // Draw ChronoGlobe logo/icon (globe icon representation)
       ctx.fillStyle = '#4ade80'; // Green accent
       ctx.beginPath();
-      ctx.arc(padding + 10, brandY - 8, 10, 0, Math.PI * 2);
+      ctx.arc(padding + iconSize, brandY - (8 * scale), iconSize, 0, Math.PI * 2);
       ctx.fill();
       
       // Globe lines
       ctx.strokeStyle = '#1a3a4a';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * scale;
       ctx.beginPath();
-      ctx.ellipse(padding + 10, brandY - 8, 10, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(padding + iconSize, brandY - (8 * scale), iconSize, iconSize, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.ellipse(padding + 10, brandY - 8, 5, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(padding + iconSize, brandY - (8 * scale), iconSize / 2, iconSize, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(padding, brandY - 8);
-      ctx.lineTo(padding + 20, brandY - 8);
+      ctx.moveTo(padding, brandY - (8 * scale));
+      ctx.lineTo(padding + (20 * scale), brandY - (8 * scale));
       ctx.stroke();
 
       // ChronoGlobe text
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('ChronoGlobe', padding + 28, brandY - 4);
+      ctx.font = `bold ${16 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.fillText('ChronoGlobe', padding + (28 * scale), brandY - (4 * scale));
 
       // Convert to data URL
       resolve(canvas.toDataURL('image/png', 1.0));
@@ -163,6 +168,25 @@ export const downloadShareCard = async (data: ShareCardData): Promise<void> => {
     link.click();
   } catch (error) {
     console.error('Failed to download share card:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download the original image in full quality
+ */
+export const downloadOriginalImage = async (imageUrl: string): Promise<void> => {
+  try {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `chronoglobe-original-${Date.now()}.png`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download original image:', error);
     throw error;
   }
 };

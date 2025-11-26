@@ -143,7 +143,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   id="month-select"
                   value={selectedDate.month} 
                   onChange={(e) => onDateChange({...selectedDate, month: parseInt(e.target.value)})}
-                  className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="bg-black/50 border border-white/20 rounded px-2 py-1.5 text-base md:text-sm flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
                 >
                   {months.map((m, i) => (
                     <option key={i} value={i + 1}>{m}</option>
@@ -153,7 +153,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   id="day-select"
                   value={selectedDate.day}
                   onChange={(e) => onDateChange({...selectedDate, day: parseInt(e.target.value)})}
-                  className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm w-16 text-center focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="bg-black/50 border border-white/20 rounded px-2 py-1.5 text-base md:text-sm w-20 md:w-16 text-center focus:ring-1 focus:ring-blue-500 outline-none"
                 >
                   {days.map((day) => (
                     <option key={day} value={day}>{day}</option>
@@ -173,13 +173,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onDateChange({ ...selectedDate, year: parseInt(value) || 0 });
                   }}
                   placeholder="Year"
-                  className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="bg-black/50 border border-white/20 rounded px-2 py-1.5 text-base md:text-sm flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
                 />
                 <select 
                   id="era-select"
                   value={selectedDate.era}
                   onChange={(e) => onDateChange({...selectedDate, era: e.target.value as 'CE' | 'BCE'})}
-                  className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm w-20 focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="bg-black/50 border border-white/20 rounded px-2 py-1.5 text-base md:text-sm w-20 focus:ring-1 focus:ring-blue-500 outline-none"
                 >
                   <option value="CE">CE</option>
                   <option value="BCE">BCE</option>
@@ -198,7 +198,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               type="time"
               value={selectedTime}
               onChange={(e) => onTimeChange(e.target.value)}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full bg-black/50 border border-white/20 rounded-lg px-3 py-2.5 text-base md:text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
 
