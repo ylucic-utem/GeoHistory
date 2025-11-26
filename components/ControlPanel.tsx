@@ -164,9 +164,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="flex gap-2 items-center">
                 <input 
                   id="year-input"
-                  type="number" 
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={selectedDate.year}
-                  onChange={(e) => onDateChange({ ...selectedDate, year: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    onDateChange({ ...selectedDate, year: parseInt(value) || 0 });
+                  }}
                   placeholder="Year"
                   className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm flex-1 focus:ring-1 focus:ring-blue-500 outline-none"
                 />

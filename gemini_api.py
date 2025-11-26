@@ -65,7 +65,7 @@ class GeminiImageGenerator:
             config = types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
                 image_config=types.ImageConfig(
-                    aspect_ratio="16:9",
+                    aspect_ratio="3:4",
                     image_size="1K",
                 ),
             )

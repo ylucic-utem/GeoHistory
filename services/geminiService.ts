@@ -40,7 +40,7 @@ export const generateImageFromPrompt = async (prompt: string): Promise<string> =
       },
       config: {
         imageConfig: {
-          aspectRatio: "16:9",
+          aspectRatio: "3:4",
           imageSize: "1K"
         }
       },
