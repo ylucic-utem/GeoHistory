@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: chronoglobe
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_MAPBOX_ACCESS_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
