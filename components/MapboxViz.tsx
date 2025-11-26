@@ -16,6 +16,11 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
     if (!mapContainer.current) return;
     if (mapInstance.current) return;
 
+    if (!import.meta.env.VITE_MAPBOX_ACCESS_TOKEN) {
+      console.error('Mapbox access token not found. Please set VITE_MAPBOX_ACCESS_TOKEN environment variable.');
+      return;
+    }
+
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
     const map = new mapboxgl.Map({
