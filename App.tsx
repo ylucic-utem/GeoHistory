@@ -183,7 +183,10 @@ const App: React.FC = () => {
       {selectedImageForView && (
         <ImageResult 
           result={selectedImageForView} 
-          onClose={() => setSelectedImageForView(null)} 
+          onClose={() => setSelectedImageForView(null)}
+          location={selectedLocation}
+          date={selectedDate}
+          time={selectedTime}
         />
       )}
 
