@@ -48,6 +48,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, onCl
         <div className={`
           absolute bg-black/90 backdrop-blur-xl border border-white/10 text-white shadow-2xl
           transition-transform duration-300 ease-in-out
+          overflow-y-auto
           
           /* Mobile: Bottom sheet */
           bottom-0 left-0 right-0 rounded-t-2xl max-h-[70vh]
@@ -91,7 +92,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, onCl
                 No images generated yet.
               </p>
             ) : (
-              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar touch-pan-y overscroll-contain">
                 <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
                   {images.map((image, index) => (
                     <div 
@@ -110,9 +111,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, onCl
                           Failed to load
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-2 text-xs text-white text-center">
-                        <span className="line-clamp-3">{image.prompt}</span>
-                      </div>
                     </div>
                   ))}
                 </div>
