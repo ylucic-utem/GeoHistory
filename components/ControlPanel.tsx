@@ -15,6 +15,8 @@ interface ControlPanelProps {
   viewMode: 'map' | 'mapbox';
   onViewModeChange: (mode: 'map' | 'mapbox') => void;
   isMobile: boolean;
+  showConflicts: boolean;
+  onToggleShowConflicts: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -29,7 +31,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onToggleOpen,
   viewMode,
   onViewModeChange,
-  isMobile
+  isMobile,
+  showConflicts,
+  onToggleShowConflicts
 }) => {
 
   const formatLat = (lat: number) => {
@@ -110,11 +114,33 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Box className="w-4 h-4" /> Mapbox Globe
+                  <Box className="w-4 h-4" /> Globe
                 </button>
              </div>
           </div>
           )}
+
+          {/* Conflicts Toggle */}
+          <div className="mb-4">
+            <label className="text-xs text-gray-400 uppercase tracking-wider block mb-2">Historical Conflicts</label>
+            <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+              <button
+                onClick={onToggleShowConflicts}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  showConflicts ? 'bg-red-600' : 'bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showConflicts ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className="text-sm text-white">
+                {showConflicts ? 'Hide Conflicts' : 'Show Conflicts'}
+              </span>
+            </div>
+          </div>
 
           {/* Location Display */}
           <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center space-x-3">

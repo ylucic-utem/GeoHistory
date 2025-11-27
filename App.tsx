@@ -25,6 +25,10 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'map' | 'mapbox'>('map'); // Default to map, will update on mount
   const [isMobile, setIsMobile] = useState(true); // Assume mobile first for safety
   
+  // Conflicts data and visibility
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [showConflicts, setShowConflicts] = useState(false);
+  
   // Panel starts open on desktop, closed on mobile
   // Use useEffect to safely check window dimensions after mount
   const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
@@ -43,7 +47,7 @@ const App: React.FC = () => {
     setIsMobile(mobile);
     setIsControlPanelOpen(!mobile); // Open panel on desktop
     
-    // On mobile, always use map view (Leaflet)
+    // On mobile, use natural earth map view (GlobeViz)
     // On desktop, default to mapbox globe
     setViewMode(mobile ? 'map' : 'mapbox');
   }, []);
@@ -61,6 +65,20 @@ const App: React.FC = () => {
       }
     };
     loadImages();
+  }, []);
+
+  // Load conflicts data
+  useEffect(() => {
+    const loadConflicts = async () => {
+      try {
+        const response = await fetch('/conflicts.json');
+        const data = await response.json();
+        setConflicts(data);
+      } catch (error) {
+        console.error('Failed to load conflicts:', error);
+      }
+    };
+    loadConflicts();
   }, []);
 
   const formatMonth = (m: number) => {
@@ -144,19 +162,35 @@ const App: React.FC = () => {
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden text-white">
       {/* Background Visualization Switcher */}
-      {viewMode === 'map' && (
-        <GlobeViz 
-          onLocationSelect={setSelectedLocation} 
-          selectedLocation={selectedLocation} 
-        />
-      )}
-      {viewMode === 'mapbox' && (
-        <MapboxViz
+      {/* On mobile: ALWAYS show GlobeViz (naturalEarth projection) */}
+      {/* On desktop: Allow switching between map and mapbox views */}
+      {isMobile ? (
+        <GlobeViz
           onLocationSelect={setSelectedLocation}
           selectedLocation={selectedLocation}
+          conflicts={conflicts}
+          showConflicts={showConflicts}
         />
+      ) : (
+        <>
+          {viewMode === 'map' && (
+            <GlobeViz
+              onLocationSelect={setSelectedLocation}
+              selectedLocation={selectedLocation}
+              conflicts={conflicts}
+              showConflicts={showConflicts}
+            />
+          )}
+          {viewMode === 'mapbox' && (
+            <MapboxViz
+              onLocationSelect={setSelectedLocation}
+              selectedLocation={selectedLocation}
+              conflicts={conflicts}
+              showConflicts={showConflicts}
+            />
+          )}
+        </>
       )}
-
       {/* Branding Overlay */}
       <div className="absolute top-6 left-6 z-10 pointer-events-none">
         <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent drop-shadow-lg">
@@ -181,6 +215,8 @@ const App: React.FC = () => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         isMobile={isMobile}
+        showConflicts={showConflicts}
+        onToggleShowConflicts={() => setShowConflicts(prev => !prev)}
       />
 
       {/* Floating Toggle Button - Visible only when panel is CLOSED */}
