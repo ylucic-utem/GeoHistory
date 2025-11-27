@@ -35,11 +35,16 @@ const ImageResult: React.FC<ImageResultProps> = ({
     imageUrl: result.imageUrl!,
     location: location!,
     date: date!,
-    time: time!
+    time: time!,
+    locationName: result.locationName // Include location name if available (from conflicts)
   } : null;
 
   // Format location for display
   const formatLocation = () => {
+    // If we have a location name (from conflict), use it
+    if (result.locationName) {
+      return result.locationName;
+    }
     if (!location) return 'Unknown location';
     const latStr = `${Math.abs(location.lat).toFixed(2)}° ${location.lat >= 0 ? 'N' : 'S'}`;
     const lngStr = `${Math.abs(location.lng).toFixed(2)}° ${location.lng >= 0 ? 'E' : 'W'}`;
@@ -70,7 +75,7 @@ const ImageResult: React.FC<ImageResultProps> = ({
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-gray-950">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-400"></span>
-              Generated Visualization
+              Generated Moment
             </h3>
             <div className="flex gap-1">
               {/* Share Button */}

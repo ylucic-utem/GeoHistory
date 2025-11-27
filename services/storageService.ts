@@ -17,6 +17,8 @@ interface StoredImage {
   location?: Coordinates;
   date?: DateSelection;
   time?: string;
+  locationName?: string;
+  conflictData?: any;
   createdAt: number;
 }
 
@@ -82,6 +84,8 @@ export const saveGeneratedImage = async (
       location: location || result.location,
       date: date || result.date,
       time: time || result.time,
+      locationName: result.locationName,
+      conflictData: result.conflictData,
       createdAt: Date.now()
     };
 
@@ -127,7 +131,9 @@ export const loadStoredImages = async (): Promise<GeneratedImageResult[]> => {
             prompt: stored.prompt,
             location: stored.location,
             date: stored.date,
-            time: stored.time
+            time: stored.time,
+            locationName: stored.locationName,
+            conflictData: stored.conflictData
           }));
 
         resolve(images);

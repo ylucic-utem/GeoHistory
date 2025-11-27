@@ -10,6 +10,15 @@ export interface DateSelection {
   era: 'CE' | 'BCE';
 }
 
+export interface ConflictData {
+  name?: string;
+  place?: string;
+  year?: number | string;
+  context?: string;
+  lat: number;
+  lng: number;
+}
+
 export interface GeneratedImageResult {
   imageUrl: string | null;
   prompt: string;
@@ -17,6 +26,8 @@ export interface GeneratedImageResult {
   location?: Coordinates;
   date?: DateSelection;
   time?: string;
+  locationName?: string; // Name of place (used for conflicts)
+  conflictData?: ConflictData; // Full conflict data if generated from a conflict
 }
 
 export interface ShareCardData {

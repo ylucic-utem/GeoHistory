@@ -105,7 +105,8 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${20 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
-      const locationText = formatCoordinates(data.location.lat, data.location.lng);
+      // Use location name if available, otherwise use coordinates
+      const locationText = data.locationName || formatCoordinates(data.location.lat, data.location.lng);
       ctx.fillText(locationText, padding, textY);
 
       // Date and time (subtitle)
@@ -196,7 +197,7 @@ export const downloadOriginalImage = async (imageUrl: string): Promise<void> => 
  * Note: WhatsApp Web doesn't support direct image sharing, so we share a link/message
  */
 export const shareToWhatsApp = async (data: ShareCardData): Promise<void> => {
-  const locationText = formatCoordinates(data.location.lat, data.location.lng);
+  const locationText = data.locationName || formatCoordinates(data.location.lat, data.location.lng);
   const dateText = formatDate(data.date);
   const timeText = formatTime(data.time);
   
@@ -226,7 +227,7 @@ export const shareNative = async (data: ShareCardData): Promise<boolean> => {
     // Check if the browser supports sharing files
     const shareData: ShareData = {
       title: 'ChronoGlobe',
-      text: `Time travel to ${formatCoordinates(data.location.lat, data.location.lng)} on ${formatDate(data.date)}`,
+      text: `Time travel to ${data.locationName || formatCoordinates(data.location.lat, data.location.lng)} on ${formatDate(data.date)}`,
       files: [file]
     };
 
@@ -239,7 +240,7 @@ export const shareNative = async (data: ShareCardData): Promise<boolean> => {
     // Fallback: try sharing without files (just text)
     const textOnlyShare: ShareData = {
       title: 'ChronoGlobe',
-      text: `🌍 ChronoGlobe Time Travel\n\n📍 ${formatCoordinates(data.location.lat, data.location.lng)}\n📅 ${formatDate(data.date)} • ${formatTime(data.time)}\n\nDownload the app to explore history!`
+      text: `🌍 ChronoGlobe Time Travel\n\n📍 ${data.locationName || formatCoordinates(data.location.lat, data.location.lng)}\n📅 ${formatDate(data.date)} • ${formatTime(data.time)}\n\nDownload the app to explore history!`
     };
     
     if (navigator.canShare && navigator.canShare(textOnlyShare)) {

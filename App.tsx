@@ -4,10 +4,11 @@ import MapboxViz from './components/MapboxViz';
 import ControlPanel from './components/ControlPanel';
 import ImageResult from './components/ImageResult';
 import ImageGallery from './components/ImageGallery';
-import { Coordinates, DateSelection, GeneratedImageResult } from './types';
+import { Coordinates, DateSelection, GeneratedImageResult, ConflictData } from './types';
 import { generateImageFromPrompt, checkApiKeySelection, requestApiKeySelection } from './services/geminiService';
 import { loadStoredImages, saveGeneratedImage, clearStoredImages } from './services/storageService';
 import { Menu } from 'lucide-react';
+import { ConflictInfo } from './components/ConflictTooltip';
 
 const App: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<Coordinates | null>(null);
@@ -94,6 +95,99 @@ const App: React.FC = () => {
     return `Create an image at ${latStr}, ${lngStr}, ${dateStr}, ${time} hours. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Photorealistic, high quality.`;
   };
 
+  const constructConflictPrompt = (conflictData: ConflictInfo): string => {
+    const placeName = conflictData.place || conflictData.name || 'Unknown location';
+    const year = conflictData.year || 'unknown time';
+    const context = conflictData.context || '';
+    
+    let prompt = `Create a photorealistic image of ${placeName} during ${year}`;
+    
+    if (context) {
+      prompt += `, during the ${context}`;
+    }
+    
+    prompt += `. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Show the scene as it would have appeared during this period. High quality, detailed.`;
+    
+    return prompt;
+  };
+
+  const handleConflictVisualize = async (conflictData: ConflictInfo) => {
+    if (!conflictData.lat || !conflictData.lng) return;
+    
+    setIsGenerating(true);
+    setErrorMsg(null);
+
+    const prompt = constructConflictPrompt(conflictData);
+    
+    // Parse year to create a date
+    let dateSelection: DateSelection;
+    if (conflictData.year) {
+      const yearNum = typeof conflictData.year === 'string' ? parseInt(conflictData.year) : conflictData.year;
+      dateSelection = {
+        year: Math.abs(yearNum),
+        month: 6, // Default to mid-year
+        day: 15,
+        era: yearNum < 0 ? 'BCE' : 'CE'
+      };
+    } else {
+      dateSelection = selectedDate;
+    }
+
+    try {
+      // 1. Check API Key
+      const hasKey = await checkApiKeySelection();
+      if (!hasKey) {
+        setIsGenerating(false);
+        try {
+            await requestApiKeySelection();
+            setErrorMsg("Please click Visualize Moment again after selecting your API key.");
+            return; 
+        } catch (e) {
+            console.error("Key selection failed", e);
+            setErrorMsg("Billing setup is required for high-quality generation.");
+            return;
+        }
+      }
+
+      // 2. Generate
+      const imageUrl = await generateImageFromPrompt(prompt);
+      const locationName = conflictData.place || conflictData.name || undefined;
+      const newImageResult: GeneratedImageResult = { 
+        imageUrl, 
+        prompt,
+        location: { lat: conflictData.lat, lng: conflictData.lng },
+        date: dateSelection,
+        time: "12:00",
+        locationName,
+        conflictData: conflictData as ConflictData
+      };
+      setGeneratedImages(prev => [newImageResult, ...prev]);
+      setSelectedImageForView(newImageResult);
+      
+      // Save to persistent storage
+      await saveGeneratedImage(newImageResult, { lat: conflictData.lat, lng: conflictData.lng }, dateSelection, "12:00");
+      
+      // Close panel on mobile after generation
+      if (window.innerWidth < 768) {
+        setIsControlPanelOpen(false);
+      }
+
+    } catch (error: any) {
+      if (error.message === "API_KEY_MISSING") {
+         try {
+             await requestApiKeySelection();
+             setErrorMsg("Please select a project with billing enabled to proceed.");
+         } catch (e) {
+             setErrorMsg("Failed to select API key.");
+         }
+      } else {
+        setErrorMsg("Failed to generate visualization. Please try again.");
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!selectedLocation) return;
     setIsGenerating(true);
@@ -170,6 +264,7 @@ const App: React.FC = () => {
           selectedLocation={selectedLocation}
           conflicts={conflicts}
           showConflicts={showConflicts}
+          onConflictVisualize={handleConflictVisualize}
         />
       ) : (
         <>
@@ -179,6 +274,7 @@ const App: React.FC = () => {
               selectedLocation={selectedLocation}
               conflicts={conflicts}
               showConflicts={showConflicts}
+              onConflictVisualize={handleConflictVisualize}
             />
           )}
           {viewMode === 'mapbox' && (
@@ -187,6 +283,7 @@ const App: React.FC = () => {
               selectedLocation={selectedLocation}
               conflicts={conflicts}
               showConflicts={showConflicts}
+              onConflictVisualize={handleConflictVisualize}
             />
           )}
         </>

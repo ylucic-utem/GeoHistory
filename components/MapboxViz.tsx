@@ -8,6 +8,7 @@ interface MapboxVizProps {
   selectedLocation: Coordinates | null;
   conflicts: any[];
   showConflicts: boolean;
+  onConflictVisualize?: (conflictData: ConflictInfo) => void;
 }
 
 // Check WebGL support
@@ -21,13 +22,25 @@ const isWebGLSupported = (): boolean => {
   }
 };
 
-const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts }) => {
+const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, onConflictVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo }>({ visible: false, x: 0, y: 0 });
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean }>({ visible: false, x: 0, y: 0, pinned: false });
+  const pinnedRef = useRef<boolean>(false);
+
+  const handleVisualize = (data: ConflictInfo) => {
+    if (onConflictVisualize && data.lat != null && data.lng != null) {
+      // Set the location to the conflict coordinates
+      onLocationSelect({ lat: data.lat, lng: data.lng });
+      // Trigger conflict visualization
+      onConflictVisualize(data);
+      // Hide tooltip
+      setTooltip({ visible: false, x: 0, y: 0, pinned: false });
+    }
+  };
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -70,10 +83,13 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         setIsStyleLoaded(true);
     });
 
-    map.on('click', (e) => {
+     map.on('click', (e) => {
        const { lng, lat } = e.lngLat;
        onLocationSelect({ lat, lng });
-    });
+       // Hide any visible tooltip when clicking elsewhere
+       pinnedRef.current = false;
+       setTooltip({ visible: false, x: 0, y: 0, pinned: false });
+     });
 
     // Handle WebGL context loss
     map.on('error', (e) => {
@@ -117,13 +133,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
           
           markerRef.current = marker;
 
-          // Fly to location
-          map.flyTo({
-              center: [selectedLocation.lng, selectedLocation.lat],
-              zoom: 4,
-              speed: 1.5,
-              curve: 1
-          });
+            // Do not change zoom or center automatically
       }
   }, [selectedLocation]);
 
@@ -161,7 +171,9 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
             name: conflict.name,
             place: conflict.place,
             year: conflict.year,
-            context: conflict.context
+            context: conflict.context,
+            lat: conflict.lat,
+            lng: conflict.lng
           }
         }))
       };
@@ -183,6 +195,8 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
       });
 
       const onMouseMove = (e: any) => {
+        // If tooltip is pinned, don't alter visibility/position based on hover
+        if (pinnedRef.current) return;
         const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
         if (features && features.length > 0) {
           const f = features[0];
@@ -196,25 +210,60 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
               place: props.place,
               year: props.year,
               context: props.context,
-            }
+              lat: props.lat,
+              lng: props.lng,
+            },
+            pinned: false
           });
+          pinnedRef.current = false;
           map.getCanvas().style.cursor = 'pointer';
         } else {
-          setTooltip(t => ({ ...t, visible: false }));
+          if (!pinnedRef.current) {
+            setTooltip(t => ({ ...t, visible: false }));
+          }
           map.getCanvas().style.cursor = '';
         }
       };
       const onMouseLeave = () => {
+        if (pinnedRef.current) return;
         setTooltip(t => ({ ...t, visible: false }));
         map.getCanvas().style.cursor = '';
       };
 
+      // Click to pin tooltip and place main pin
+      const onClick = (e: any) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+        if (features && features.length > 0) {
+          const f = features[0];
+          const props = f.properties || {};
+          setTooltip({
+            visible: true,
+            x: e.originalEvent.clientX,
+            y: e.originalEvent.clientY,
+            data: {
+              name: props.name,
+              place: props.place,
+              year: props.year,
+              context: props.context,
+              lat: props.lat,
+              lng: props.lng,
+            },
+            pinned: true
+          });
+          pinnedRef.current = true;
+          // Place the user's main pin at the conflict location immediately
+          onLocationSelect({ lat: props.lat, lng: props.lng });
+        }
+      };
+
       map.on('mousemove', layerId, onMouseMove);
       map.on('mouseleave', layerId, onMouseLeave);
+      map.on('click', layerId, onClick);
 
       return () => {
         map.off('mousemove', layerId, onMouseMove);
         map.off('mouseleave', layerId, onMouseLeave);
+        map.off('click', layerId, onClick);
       };
     }
   }, [conflicts, showConflicts, isStyleLoaded]);
@@ -236,7 +285,13 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
   return (
     <>
       <div ref={mapContainer} className="absolute inset-0 w-full h-full bg-black z-0" />
-      <ConflictTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} data={tooltip.data} />
+      <ConflictTooltip 
+        visible={tooltip.visible} 
+        x={tooltip.x} 
+        y={tooltip.y} 
+        data={tooltip.data}
+        onVisualize={handleVisualize}
+      />
     </>
   );
 }
