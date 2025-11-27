@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Coordinates } from '../types';
+import ConflictTooltip, { ConflictInfo } from './ConflictTooltip';
 
 interface MapboxVizProps {
   onLocationSelect: (coords: Coordinates) => void;
   selectedLocation: Coordinates | null;
+  conflicts: any[];
+  showConflicts: boolean;
 }
 
 // Check WebGL support
@@ -18,11 +21,13 @@ const isWebGLSupported = (): boolean => {
   }
 };
 
-const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation }) => {
+const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isStyleLoaded, setIsStyleLoaded] = useState(false);
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo }>({ visible: false, x: 0, y: 0 });
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -46,7 +51,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
     try {
     const map = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/ylucic/cmif9gj55006i01qtdjtp75zt/draft',
+        style: 'mapbox://styles/ylucic/cmif9gi5d002k01qrgk1q3jur',
         projection: 'globe' as any, // Cast to any to avoid type version conflicts
         zoom: 3, // Start with world view as per request
         center: [-74, -24]
@@ -62,6 +67,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
             'space-color': 'rgb(0, 0, 0)', // Background color
             'star-intensity': 0.2 // Background star brightness (default 0.35 at low zoooms )
         });
+        setIsStyleLoaded(true);
     });
 
     map.on('click', (e) => {
@@ -88,6 +94,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
             mapInstance.current.remove();
             mapInstance.current = null;
         }
+        setIsStyleLoaded(false);
     }
   }, []); // Run once on mount
 
@@ -120,6 +127,98 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
       }
   }, [selectedLocation]);
 
+  // Handle Conflict Points
+  useEffect(() => {
+    if (!mapInstance.current || !isStyleLoaded) return;
+    const map = mapInstance.current;
+
+    const sourceId = 'conflicts-source';
+    const layerId = 'conflicts-layer';
+
+    // Remove existing layer and source if they exist
+    if (map.getLayer(layerId)) {
+      map.removeLayer(layerId);
+    }
+    if (map.getSource(sourceId)) {
+      map.removeSource(sourceId);
+    }
+
+    // Add conflict points if enabled
+    if (showConflicts && conflicts.length > 0) {
+      const validConflicts = conflicts.filter(conflict => 
+        conflict.lat != null && conflict.lng != null && 
+        !isNaN(conflict.lat) && !isNaN(conflict.lng)
+      );
+      const geojson = {
+        type: 'FeatureCollection',
+        features: validConflicts.map(conflict => ({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [conflict.lng, conflict.lat]
+          },
+          properties: {
+            name: conflict.name,
+            place: conflict.place,
+            year: conflict.year,
+            context: conflict.context
+          }
+        }))
+      };
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojson
+      });
+
+      map.addLayer({
+        id: layerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-radius': 3,
+          'circle-color': 'red',
+          'circle-opacity': 1
+        }
+      });
+
+      const onMouseMove = (e: any) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+        if (features && features.length > 0) {
+          const f = features[0];
+          const props = f.properties || {};
+          setTooltip({
+            visible: true,
+            x: e.originalEvent.clientX,
+            y: e.originalEvent.clientY,
+            data: {
+              name: props.name,
+              place: props.place,
+              year: props.year,
+              context: props.context,
+            }
+          });
+          map.getCanvas().style.cursor = 'pointer';
+        } else {
+          setTooltip(t => ({ ...t, visible: false }));
+          map.getCanvas().style.cursor = '';
+        }
+      };
+      const onMouseLeave = () => {
+        setTooltip(t => ({ ...t, visible: false }));
+        map.getCanvas().style.cursor = '';
+      };
+
+      map.on('mousemove', layerId, onMouseMove);
+      map.on('mouseleave', layerId, onMouseLeave);
+
+      return () => {
+        map.off('mousemove', layerId, onMouseMove);
+        map.off('mouseleave', layerId, onMouseLeave);
+      };
+    }
+  }, [conflicts, showConflicts, isStyleLoaded]);
+
   // Show error state if WebGL failed
   if (error) {
     return (
@@ -134,7 +233,12 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
     );
   }
 
-  return <div ref={mapContainer} className="absolute inset-0 w-full h-full bg-black z-0" />;
+  return (
+    <>
+      <div ref={mapContainer} className="absolute inset-0 w-full h-full bg-black z-0" />
+      <ConflictTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} data={tooltip.data} />
+    </>
+  );
 }
 
 export default MapboxViz;
