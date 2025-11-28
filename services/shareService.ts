@@ -211,10 +211,9 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       ctx.shadowOffsetY = 2;
       
       // Create single line date/time text matching ImageResult format
-      const dayName = getDayOfWeek(data.date.year, data.date.month, data.date.day, data.date.era);
-      const formattedTime = formatTime(data.time);
       const monthName = MONTHS[data.date.month - 1];
-      const dateTimeText = `Moment taken in ${dayName} ${monthName} ${data.date.day} of the year ${data.date.year} ${data.date.era} at ${formattedTime}`;
+      const formattedTime = formatTime(data.time);
+      const dateTimeText = `Moment taken in ${monthName} ${data.date.day}, ${data.date.year} ${data.date.era} at ${formattedTime}`;
       
       ctx.fillText(dateTimeText, padding, currentY);
       currentY -= 50;

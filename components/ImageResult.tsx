@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GeneratedImageResult, Coordinates, DateSelection } from '../types';
 import { X, Share2, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { downloadShareCard, shareNative } from '../services/shareService';
 
 interface ImageResultProps {
   result: GeneratedImageResult | null;
@@ -25,8 +25,6 @@ const ImageResult: React.FC<ImageResultProps> = ({
   time 
 }) => {
   const [showText, setShowText] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Delay text appearance for dramatic effect
@@ -39,95 +37,40 @@ const ImageResult: React.FC<ImageResultProps> = ({
   // Check if we have all the data needed for sharing
   const canShare = result.imageUrl;
 
-  // Capture the card as an image
-  const captureCard = async (): Promise<Blob | null> => {
-    if (!cardRef.current) return null;
-    
-    try {
-      setIsCapturing(true);
-      
-      // Wait a moment to ensure all animations are complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: null,
-        scale: 2, // Higher quality
-        useCORS: true,
-        logging: false,
-        allowTaint: true
-      });
-      
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/png', 1.0);
-      });
-    } catch (error) {
-      console.error('Failed to capture card:', error);
-      return null;
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
   // Handle sharing with web share API
   const handleShare = async () => {
-    if (!canShare) return;
+    if (!canShare || !location || !date || !time) return;
     
-    const blob = await captureCard();
-    if (!blob) {
-      console.error('Failed to capture image');
-      return;
+    const shareData = {
+      imageUrl: result.imageUrl!,
+      location,
+      date,
+      time,
+      locationName: result.locationName,
+      context: result.conflictData?.context
+    };
+
+    const success = await shareNative(shareData);
+    if (!success) {
+      // Fallback to download if native share failed
+      handleDownload();
     }
-
-    const file = new File([blob], 'chronoglobe-moment.png', { type: 'image/png' });
-    
-    // Format location and date for share text
-    const locationText = formatLocation();
-    const dateText = formatDate();
-    const shareText = `This is a moment in ${locationText} at ${dateText}. Visualized in ChronoGlobe`;
-
-    // Check if Web Share API is available
-    if (navigator.share) {
-      try {
-        const shareData: ShareData = {
-          title: 'ChronoGlobe',
-          text: shareText,
-          files: [file]
-        };
-
-        if (navigator.canShare && navigator.canShare(shareData)) {
-          await navigator.share(shareData);
-          return;
-        }
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
-          console.error('Share failed:', error);
-        }
-        return;
-      }
-    }
-    
-    // Fallback: download if share not available
-    handleDownload();
   };
 
   // Handle downloading the card
   const handleDownload = async () => {
-    if (!canShare) return;
+    if (!canShare || !location || !date || !time) return;
     
-    const blob = await captureCard();
-    if (!blob) {
-      console.error('Failed to capture image');
-      return;
-    }
+    const shareData = {
+      imageUrl: result.imageUrl!,
+      location,
+      date,
+      time,
+      locationName: result.locationName,
+      context: result.conflictData?.context
+    };
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = `chronoglobe-${Date.now()}.png`;
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
+    await downloadShareCard(shareData);
   };
 
   // Format location for display
@@ -162,7 +105,7 @@ const ImageResult: React.FC<ImageResultProps> = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center safe-screen bg-black/90 backdrop-blur-md animate-in fade-in duration-300" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div className="w-full max-w-sm mx-auto">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
-            <div className="relative aspect-[9/16]" ref={cardRef}>
+            <div className="relative aspect-[9/16]">
               {result.imageUrl ? (
                 <>
                   <img 
@@ -233,8 +176,7 @@ const ImageResult: React.FC<ImageResultProps> = ({
                   {/* Download: icon-only */}
                   <button
                     onClick={handleDownload}
-                    disabled={isCapturing}
-                    className="flex items-center justify-center w-10 h-10 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    className="flex items-center justify-center w-10 h-10 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                     aria-label="Download"
                     title="Download"
                   >
@@ -243,11 +185,10 @@ const ImageResult: React.FC<ImageResultProps> = ({
                   {/* Share: icon + text */}
                   <button
                     onClick={handleShare}
-                    disabled={isCapturing}
-                    className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors disabled:opacity-50"
+                    className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors"
                   >
                     <Share2 className="w-4 h-4" />
-                    <span>{isCapturing ? 'Capturing...' : 'Share'}</span>
+                    <span>Share</span>
                   </button>
                   {/* Close: icon-only */}
                   <button
