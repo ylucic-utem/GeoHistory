@@ -131,6 +131,7 @@ dmypy.json
 # Project specific
 generated_images/
 *.log
+data/
 
 # API Keys and Secrets
 *.key

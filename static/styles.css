@@ -40,6 +40,37 @@ body {
     background: #000;
 }
 
+/* Improved touch target for map markers (Leaflet + Mapbox) */
+/* Leaflet markers */
+.leaflet-marker-icon {
+    position: relative;
+}
+.leaflet-marker-icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+/* Mapbox GL markers */
+.mapboxgl-marker {
+    position: relative;
+}
+.mapboxgl-marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
 /* Ensure Leaflet controls are visible and clickable */
 .leaflet-control-container {
     z-index: 100 !important;
@@ -90,6 +121,12 @@ body {
     display: flex;
     flex-direction: column;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Prefer dynamic viewport height on supported browsers to avoid iOS toolbar cutoffs */
+@supports (height: 100dvh) {
+    .app { height: 100dvh; }
+    .control-panel { height: 100dvh; }
 }
 
 .control-panel.closed {

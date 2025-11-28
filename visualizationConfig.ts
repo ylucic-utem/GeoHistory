@@ -1,8 +1,12 @@
 // Configuration for visualization styles
 export const visualizationConfig = {
+  // Zoom threshold for scaling markers
+  zoomThreshold: 9,
+
   // Conflict points
   conflicts: {
     radius: 5,
+    radiusZoomed: 10,
     color: 'rgb(212, 2, 2)',
     fillColor: 'rgb(212, 2, 2)',
     opacity: 1,
@@ -13,6 +17,7 @@ export const visualizationConfig = {
   // Event points
   events: {
     radius: 5,
+    radiusZoomed: 10,
     color: 'rgba(6, 2, 233, 1)',
     fillColor: 'rgba(6, 2, 233, 1)',
     opacity: 1,

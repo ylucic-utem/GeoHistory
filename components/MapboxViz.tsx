@@ -31,7 +31,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean }>({ visible: false, x: 0, y: 0, pinned: false });
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean; anchorLat?: number; anchorLng?: number }>({ visible: false, x: 0, y: 0, pinned: false });
   const pinnedRef = useRef<boolean>(false);
 
   const handleVisualize = (data: ConflictInfo) => {
@@ -88,11 +88,25 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
 
      map.on('click', (e) => {
        const { lng, lat } = e.lngLat;
+       // Only place pin and hide tooltip if user clicks on map (not on marker)
+       if (pinnedRef.current) {
+         // Hide the anchored tooltip when placing a new pin
+         pinnedRef.current = false;
+         setTooltip({ visible: false, x: 0, y: 0, pinned: false });
+       }
        onLocationSelect({ lat, lng });
-       // Hide any visible tooltip when clicking elsewhere
-       pinnedRef.current = false;
-       setTooltip({ visible: false, x: 0, y: 0, pinned: false });
      });
+
+    // Update tooltip position when map moves if tooltip is anchored
+    map.on('move', () => {
+      setTooltip(t => {
+        if (t.pinned && t.anchorLat != null && t.anchorLng != null) {
+          const point = map.project([t.anchorLng, t.anchorLat]);
+          return { ...t, x: point.x, y: point.y };
+        }
+        return t;
+      });
+    });
 
     // Handle WebGL context loss
     map.on('error', (e) => {
@@ -191,7 +205,13 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         type: 'circle',
         source: sourceId,
         paint: {
-          'circle-radius': visualizationConfig.conflicts.radius,
+          'circle-radius': [
+            'step',
+            ['zoom'],
+            visualizationConfig.conflicts.radius,
+            visualizationConfig.zoomThreshold,
+            visualizationConfig.conflicts.radiusZoomed
+          ],
           'circle-color': visualizationConfig.conflicts.color,
           'circle-opacity': visualizationConfig.conflicts.opacity
         }
@@ -239,10 +259,11 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         if (features && features.length > 0) {
           const f = features[0];
           const props = f.properties || {};
+          const point = map.project([props.lng, props.lat]);
           setTooltip({
             visible: true,
-            x: e.originalEvent.clientX,
-            y: e.originalEvent.clientY,
+            x: point.x,
+            y: point.y,
             data: {
               name: props.name,
               place: props.place,
@@ -251,11 +272,11 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
               lat: props.lat,
               lng: props.lng,
             },
-            pinned: true
+            pinned: true,
+            anchorLat: props.lat,
+            anchorLng: props.lng
           });
           pinnedRef.current = true;
-          // Place the user's main pin at the conflict location immediately
-          onLocationSelect({ lat: props.lat, lng: props.lng });
         }
       };
 
@@ -323,7 +344,13 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         type: 'circle',
         source: sourceId,
         paint: {
-          'circle-radius': visualizationConfig.events.radius,
+          'circle-radius': [
+            'step',
+            ['zoom'],
+            visualizationConfig.events.radius,
+            visualizationConfig.zoomThreshold,
+            visualizationConfig.events.radiusZoomed
+          ],
           'circle-color': visualizationConfig.events.color,
           'circle-opacity': visualizationConfig.events.opacity
         }
@@ -366,16 +393,17 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         map.getCanvas().style.cursor = '';
       };
 
-      // Click to pin tooltip and place main pin
+      // Click to pin tooltip
       const onClick = (e: any) => {
         const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
         if (features && features.length > 0) {
           const f = features[0];
           const props = f.properties || {};
+          const point = map.project([props.lng, props.lat]);
           setTooltip({
             visible: true,
-            x: e.originalEvent.clientX,
-            y: e.originalEvent.clientY,
+            x: point.x,
+            y: point.y,
             data: {
               name: props.name,
               place: props.place,
@@ -385,11 +413,11 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
               lat: props.lat,
               lng: props.lng,
             },
-            pinned: true
+            pinned: true,
+            anchorLat: props.lat,
+            anchorLng: props.lng
           });
           pinnedRef.current = true;
-          // Place the user's main pin at the event location immediately
-          onLocationSelect({ lat: props.lat, lng: props.lng });
         }
       };
 

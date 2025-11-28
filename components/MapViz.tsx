@@ -22,7 +22,8 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
   const markerRef = useRef<L.Marker | null>(null);
   const conflictsLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean }>({ visible: false, x: 0, y: 0, pinned: false });
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean; anchorLat?: number; anchorLng?: number }>({ visible: false, x: 0, y: 0, pinned: false });
+  const [currentZoom, setCurrentZoom] = useState<number>(2);
   const pinnedRef = useRef<boolean>(false);
 
   const handleVisualize = (data: ConflictInfo) => {
@@ -66,10 +67,29 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
       const { lat, lng } = e.latlng;
       // Normalize longitude to -180 to 180
       const normalizedLng = ((((lng + 180) % 360) + 360) % 360) - 180;
+      // Only place pin and hide tooltip if user clicks on map (not on marker)
+      if (pinnedRef.current) {
+        // Hide the anchored tooltip when placing a new pin
+        pinnedRef.current = false;
+        setTooltip({ visible: false, x: 0, y: 0, pinned: false });
+      }
       onLocationSelect({ lat, lng: normalizedLng });
-      // Hide any visible tooltip when clicking elsewhere
-      pinnedRef.current = false;
-      setTooltip({ visible: false, x: 0, y: 0, pinned: false });
+    });
+
+    // Zoom handler to update marker sizes
+    map.on('zoomend', () => {
+      setCurrentZoom(map.getZoom());
+    });
+
+    // Update tooltip position when map moves if tooltip is anchored
+    map.on('move', () => {
+      setTooltip(t => {
+        if (t.pinned && t.anchorLat != null && t.anchorLng != null) {
+          const point = map.latLngToContainerPoint([t.anchorLat, t.anchorLng]);
+          return { ...t, x: point.x, y: point.y };
+        }
+        return t;
+      });
     });
 
     // Create layer group for conflicts
@@ -127,10 +147,14 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
 
     // Add conflict points if enabled
     if (showConflicts && conflicts.length > 0) {
+      const radius = currentZoom > visualizationConfig.zoomThreshold 
+        ? visualizationConfig.conflicts.radiusZoomed 
+        : visualizationConfig.conflicts.radius;
+      
       conflicts.forEach(conflict => {
         if (conflict.lat != null && conflict.lng != null && !isNaN(conflict.lat) && !isNaN(conflict.lng)) {
           const marker = L.circleMarker([conflict.lat, conflict.lng], {
-            radius: visualizationConfig.conflicts.radius,
+            radius: radius,
             fillColor: visualizationConfig.conflicts.fillColor,
             color: visualizationConfig.conflicts.color,
             weight: visualizationConfig.conflicts.weight,
@@ -169,33 +193,49 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
             }
           });
           // Pin tooltip and place main pin on click
-          marker.on('click', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
-            // Stop propagation to prevent map click handler from firing
-            L.DomEvent.stopPropagation(e);
+          const anchorTooltip = (lat: number, lng: number, data: any) => {
+            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
             setTooltip({
               visible: true,
-              x: ev.clientX,
-              y: ev.clientY,
-              data: {
-                name: conflict.name,
-                place: conflict.place,
-                country: conflict.country,
-                year: conflict.year,
-                context: conflict.context,
-                lat: conflict.lat,
-                lng: conflict.lng,
-              },
-              pinned: true
+              x: point.x,
+              y: point.y,
+              data,
+              pinned: true,
+              anchorLat: lat,
+              anchorLng: lng
             });
             pinnedRef.current = true;
-            // Place the user's main pin at the conflict location immediately
-            onLocationSelect({ lat: conflict.lat, lng: conflict.lng });
+          };
+          marker.on('click', (e: any) => {
+            // Stop propagation to prevent map click handler from firing
+            L.DomEvent.stopPropagation(e);
+            anchorTooltip(conflict.lat, conflict.lng, {
+              name: conflict.name,
+              place: conflict.place,
+              country: conflict.country,
+              year: conflict.year,
+              context: conflict.context,
+              lat: conflict.lat,
+              lng: conflict.lng,
+            });
+          });
+          marker.on('touchend', (e: any) => {
+            // Stop propagation to prevent map click handler from firing
+            L.DomEvent.stopPropagation(e);
+            anchorTooltip(conflict.lat, conflict.lng, {
+              name: conflict.name,
+              place: conflict.place,
+              country: conflict.country,
+              year: conflict.year,
+              context: conflict.context,
+              lat: conflict.lat,
+              lng: conflict.lng,
+            });
           });
         }
       });
     }
-  }, [conflicts, showConflicts]);
+  }, [conflicts, showConflicts, currentZoom]);
 
   // Handle Event Points
   useEffect(() => {
@@ -206,10 +246,14 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
 
     // Add event points if enabled
     if (showEvents && events.length > 0) {
+      const radius = currentZoom > visualizationConfig.zoomThreshold 
+        ? visualizationConfig.events.radiusZoomed 
+        : visualizationConfig.events.radius;
+      
       events.forEach(event => {
         if (event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
           const marker = L.circleMarker([event.lat, event.lng], {
-            radius: visualizationConfig.events.radius,
+            radius: radius,
             fillColor: visualizationConfig.events.fillColor,
             color: visualizationConfig.events.color,
             weight: visualizationConfig.events.weight,
@@ -249,11 +293,23 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
             }
           });
           // Pin tooltip and place main pin on click
+          const anchorTooltip = (lat: number, lng: number, data: any) => {
+            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
+            setTooltip({
+              visible: true,
+              x: point.x,
+              y: point.y,
+              data,
+              pinned: true,
+              anchorLat: lat,
+              anchorLng: lng
+            });
+            pinnedRef.current = true;
+          };
           marker.on('click', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
             // Stop propagation to prevent map click handler from firing
             L.DomEvent.stopPropagation(e);
-            const eventData = {
+            anchorTooltip(event.lat, event.lng, {
               name: event.name,
               place: event.place,
               country: event.country,
@@ -261,22 +317,25 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
               context: event.context,
               lat: event.lat,
               lng: event.lng,
-            };
-            setTooltip({
-              visible: true,
-              x: ev.clientX,
-              y: ev.clientY,
-              data: eventData,
-              pinned: true
             });
-            pinnedRef.current = true;
-            // Place the user's main pin at the event location immediately
-            onLocationSelect({ lat: event.lat, lng: event.lng });
+          });
+          marker.on('touchend', (e: any) => {
+            // Stop propagation to prevent map click handler from firing
+            L.DomEvent.stopPropagation(e);
+            anchorTooltip(event.lat, event.lng, {
+              name: event.name,
+              place: event.place,
+              country: event.country,
+              year: event.year,
+              context: event.context,
+              lat: event.lat,
+              lng: event.lng,
+            });
           });
         }
       });
     }
-  }, [events, showEvents]);
+  }, [events, showEvents, currentZoom]);
 
   return (
     <div className="absolute inset-0 z-0 bg-gray-900 overflow-hidden">

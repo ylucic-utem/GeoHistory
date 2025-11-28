@@ -106,7 +106,7 @@ const ImageResult: React.FC<ImageResultProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-50 flex items-center justify-center safe-screen bg-black/90 backdrop-blur-md animate-in fade-in duration-300" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div className="w-full max-w-sm mx-auto">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
             <div className="relative aspect-[9/16]">
