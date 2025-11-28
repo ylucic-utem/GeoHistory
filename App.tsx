@@ -5,7 +5,7 @@ import ControlPanel from './components/ControlPanel';
 import ImageResult from './components/ImageResult';
 import ImageGallery from './components/ImageGallery';
 import { Coordinates, DateSelection, GeneratedImageResult, ConflictData } from './types';
-import { generateImageFromPrompt, checkApiKeySelection, requestApiKeySelection } from './services/geminiService';
+import { generateImageFromData, checkApiKeySelection, requestApiKeySelection } from './services/geminiService';
 import { loadStoredImages, saveGeneratedImage, clearStoredImages } from './services/storageService';
 import { reverseGeocode, formatLocationName } from './services/geocodingService';
 import { Menu } from 'lucide-react';
@@ -30,6 +30,10 @@ const App: React.FC = () => {
   // Conflicts data and visibility
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [showConflicts, setShowConflicts] = useState(false);
+  
+  // Events data and visibility
+  const [events, setEvents] = useState<any[]>([]);
+  const [showEvents, setShowEvents] = useState(false);
   
   // Panel starts open on desktop, closed on mobile
   // Use useEffect to safely check window dimensions after mount
@@ -73,7 +77,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadConflicts = async () => {
       try {
-        const response = await fetch('/conflicts.json');
+        const response = await fetch('/conflicts_updated.json');
         const data = await response.json();
         setConflicts(data);
       } catch (error) {
@@ -83,42 +87,27 @@ const App: React.FC = () => {
     loadConflicts();
   }, []);
 
-  const formatMonth = (m: number) => {
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return months[m - 1] || "January";
-  };
-
-  const constructPrompt = (coords: Coordinates, date: DateSelection, time: string): string => {
-    const latStr = `${Math.abs(coords.lat).toFixed(4)}° ${coords.lat >= 0 ? 'N' : 'S'}`;
-    const lngStr = `${Math.abs(coords.lng).toFixed(4)}° ${coords.lng >= 0 ? 'E' : 'W'}`;
-    const dateStr = `${formatMonth(date.month)} ${date.day}, ${date.year} ${date.era}`;
-    
-    return `Create an image at ${latStr}, ${lngStr}, ${dateStr}, ${time} hours. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Photorealistic, high quality.`;
-  };
-
-  const constructConflictPrompt = (conflictData: ConflictInfo): string => {
-    const placeName = conflictData.place || conflictData.name || 'Unknown location';
-    const year = conflictData.year || 'unknown time';
-    const context = conflictData.context || '';
-    
-    let prompt = `Create a photorealistic image of ${placeName} during ${year}`;
-    
-    if (context) {
-      prompt += `, during the ${context}`;
-    }
-    
-    prompt += `. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Show the scene as it would have appeared during this period. High quality, detailed.`;
-    
-    return prompt;
-  };
+  // Load events data
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const response = await fetch('/events_geocoded_strict.json');
+        const data = await response.json();
+        // Filter events that have lat and lng
+        const validEvents = data.filter((event: any) => event.lat !== undefined && event.lng !== undefined);
+        setEvents(validEvents);
+      } catch (error) {
+        console.error('Failed to load events:', error);
+      }
+    };
+    loadEvents();
+  }, []);
 
   const handleConflictVisualize = async (conflictData: ConflictInfo) => {
     if (!conflictData.lat || !conflictData.lng) return;
     
     setIsGenerating(true);
     setErrorMsg(null);
-
-    const prompt = constructConflictPrompt(conflictData);
     
     // Parse year to create a date
     let dateSelection: DateSelection;
@@ -151,8 +140,20 @@ const App: React.FC = () => {
       }
 
       // 2. Generate
-      const imageUrl = await generateImageFromPrompt(prompt);
-      const locationName = conflictData.place || conflictData.name || undefined;
+      const { imageUrl, prompt } = await generateImageFromData({ conflictData: conflictData });
+      
+      // Construct rich location name for conflicts/events using JSON data
+      let locationName = conflictData.place || conflictData.name || 'Unknown location';
+      if (conflictData.country) {
+        locationName += `, ${conflictData.country}`;
+      }
+      if (conflictData.context) {
+        locationName += `, ${conflictData.context}`;
+      }
+      if (conflictData.year) {
+        locationName += `, ${conflictData.year}`;
+      }
+      
       const newImageResult: GeneratedImageResult = { 
         imageUrl, 
         prompt,
@@ -194,8 +195,6 @@ const App: React.FC = () => {
     setIsGenerating(true);
     setErrorMsg(null);
 
-    const prompt = constructPrompt(selectedLocation, selectedDate, selectedTime);
-
     try {
       // 1. Check API Key
       const hasKey = await checkApiKeySelection();
@@ -213,7 +212,11 @@ const App: React.FC = () => {
       }
 
       // 2. Generate
-      const imageUrl = await generateImageFromPrompt(prompt);
+      const { imageUrl, prompt } = await generateImageFromData({ 
+        location: selectedLocation, 
+        date: selectedDate, 
+        time: selectedTime 
+      });
 
       // 3. Reverse geocode the location
       const geocodeResult = await reverseGeocode(selectedLocation.lat, selectedLocation.lng);
@@ -271,6 +274,8 @@ const App: React.FC = () => {
           selectedLocation={selectedLocation}
           conflicts={conflicts}
           showConflicts={showConflicts}
+          events={events}
+          showEvents={showEvents}
           onConflictVisualize={handleConflictVisualize}
         />
       ) : (
@@ -281,6 +286,8 @@ const App: React.FC = () => {
               selectedLocation={selectedLocation}
               conflicts={conflicts}
               showConflicts={showConflicts}
+              events={events}
+              showEvents={showEvents}
               onConflictVisualize={handleConflictVisualize}
             />
           )}
@@ -290,6 +297,8 @@ const App: React.FC = () => {
               selectedLocation={selectedLocation}
               conflicts={conflicts}
               showConflicts={showConflicts}
+              events={events}
+              showEvents={showEvents}
               onConflictVisualize={handleConflictVisualize}
             />
           )}
@@ -321,6 +330,8 @@ const App: React.FC = () => {
         isMobile={isMobile}
         showConflicts={showConflicts}
         onToggleShowConflicts={() => setShowConflicts(prev => !prev)}
+        showEvents={showEvents}
+        onToggleShowEvents={() => setShowEvents(prev => !prev)}
       />
 
       {/* Floating Toggle Button - Visible only when panel is CLOSED */}

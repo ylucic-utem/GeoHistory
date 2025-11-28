@@ -17,6 +17,8 @@ interface ControlPanelProps {
   isMobile: boolean;
   showConflicts: boolean;
   onToggleShowConflicts: () => void;
+  showEvents: boolean;
+  onToggleShowEvents: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -33,7 +35,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onViewModeChange,
   isMobile,
   showConflicts,
-  onToggleShowConflicts
+  onToggleShowConflicts,
+  showEvents,
+  onToggleShowEvents
 }) => {
 
   const formatLat = (lat: number) => {
@@ -120,25 +124,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
           )}
 
-          {/* Conflicts Toggle */}
+          {/* Events Toggle */}
           <div className="mb-4">
-            <label className="text-xs text-gray-400 uppercase tracking-wider block mb-2">Historical Conflicts</label>
-            <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
-              <button
-                onClick={onToggleShowConflicts}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  showConflicts ? 'bg-red-600' : 'bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    showConflicts ? 'translate-x-6' : 'translate-x-1'
+            <label className="text-xs text-gray-400 uppercase tracking-wider block mb-2">Events</label>
+            <div className="space-y-3">
+              {/* Conflicts Toggle */}
+              <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                <button
+                  onClick={onToggleShowConflicts}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
+                    showConflicts ? 'bg-red-600' : 'bg-gray-600'
                   }`}
-                />
-              </button>
-              <span className="text-sm text-white">
-                {showConflicts ? 'Hide Conflicts' : 'Show Conflicts'}
-              </span>
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showConflicts ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-white">
+                  {showConflicts ? 'Hide Conflicts' : 'Show Conflicts'}
+                </span>
+              </div>
+              {/* Events Toggle */}
+              <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                <button
+                  onClick={onToggleShowEvents}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${
+                    showEvents ? 'bg-yellow-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showEvents ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-white">
+                  {showEvents ? 'Hide Events' : 'Show Events'}
+                </span>
+              </div>
             </div>
           </div>
 

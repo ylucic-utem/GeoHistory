@@ -9,14 +9,17 @@ interface GlobeVizProps {
   selectedLocation: Coordinates | null;
   conflicts: any[];
   showConflicts: boolean;
+  events: any[];
+  showEvents: boolean;
   onConflictVisualize?: (conflictData: ConflictInfo) => void;
 }
 
-const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, onConflictVisualize }) => {
+const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const conflictsLayerRef = useRef<L.LayerGroup | null>(null);
+  const eventsLayerRef = useRef<L.LayerGroup | null>(null);
   const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean }>({ visible: false, x: 0, y: 0, pinned: false });
   const pinnedRef = useRef<boolean>(false);
 
@@ -69,6 +72,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
 
     // Create layer group for conflicts
     conflictsLayerRef.current = L.layerGroup().addTo(map);
+
+    // Create layer group for events
+    eventsLayerRef.current = L.layerGroup().addTo(map);
 
     mapInstance.current = map;
 
@@ -138,7 +144,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
               y: ev.clientY,
               data: {
                 name: conflict.name,
-                place: conflict.place,
+                place: conflict.country,
                 year: conflict.year,
                 context: conflict.context,
                 lat: conflict.lat,
@@ -171,7 +177,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
               y: ev.clientY,
               data: {
                 name: conflict.name,
-                place: conflict.place,
+                place: conflict.country,
                 year: conflict.year,
                 context: conflict.context,
                 lat: conflict.lat,
@@ -187,6 +193,86 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
       });
     }
   }, [conflicts, showConflicts]);
+
+  // Handle Event Points
+  useEffect(() => {
+    if (!mapInstance.current || !eventsLayerRef.current) return;
+
+    // Clear existing event markers
+    eventsLayerRef.current.clearLayers();
+
+    // Add event points if enabled
+    if (showEvents && events.length > 0) {
+      events.forEach(event => {
+        if (event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
+          const marker = L.circleMarker([event.lat, event.lng], {
+            radius: 3,
+            fillColor: 'yellow',
+            color: 'yellow',
+            weight: 0,
+            opacity: 1,
+            fillOpacity: 1
+          }).addTo(eventsLayerRef.current!);
+
+          marker.on('mouseover', (e: any) => {
+            const ev = e.originalEvent as MouseEvent;
+            setTooltip({
+              visible: true,
+              x: ev.clientX,
+              y: ev.clientY,
+              data: {
+                name: event.name,
+                place: event.place,
+                country: event.country,
+                year: event.year,
+                context: event.context,
+                lat: event.lat,
+                lng: event.lng,
+              },
+              pinned: false
+            });
+            pinnedRef.current = false;
+          });
+          marker.on('mouseout', () => {
+            // If pinned, ignore hover-out events to keep tooltip visible
+            if (!pinnedRef.current) {
+              setTooltip(t => ({ ...t, visible: false }));
+            }
+          });
+          marker.on('mousemove', (e: any) => {
+            const ev = e.originalEvent as MouseEvent;
+            if (!pinnedRef.current) {
+              setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
+            }
+          });
+          // Pin tooltip and place main pin on click
+          marker.on('click', (e: any) => {
+            const ev = e.originalEvent as MouseEvent;
+            // Stop propagation to prevent map click handler from firing
+            L.DomEvent.stopPropagation(e);
+            setTooltip({
+              visible: true,
+              x: ev.clientX,
+              y: ev.clientY,
+              data: {
+                name: event.name,
+                place: event.place,
+                country: event.country,
+                year: event.year,
+                context: event.context,
+                lat: event.lat,
+                lng: event.lng,
+              },
+              pinned: true
+            });
+            pinnedRef.current = true;
+            // Place the user's main pin at the event location immediately
+            onLocationSelect({ lat: event.lat, lng: event.lng });
+          });
+        }
+      });
+    }
+  }, [events, showEvents]);
 
   return (
     <div className="absolute inset-0 z-0 bg-gray-900 overflow-hidden">

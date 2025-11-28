@@ -2,6 +2,32 @@ import { GoogleGenAI } from "@google/genai";
 
 const MODEL_NAME = 'gemini-3-pro-image-preview';
 
+export type ImageGenerationData = {
+  // For user-placed pins with time travel controls
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  date?: {
+    year: number;
+    month: number;
+    day: number;
+    era: 'CE' | 'BCE';
+  };
+  time?: string;
+} | {
+  // For conflicts/events from JSON data
+  conflictData: {
+    name?: string;
+    place?: string;
+    country?: string;
+    year?: number | string;
+    context?: string;
+    lat?: number;
+    lng?: number;
+  };
+};
+
 /**
  * Checks if the user has selected a paid API key for Veo/Imagen models.
  */
@@ -19,6 +45,62 @@ export const requestApiKeySelection = async (): Promise<void> => {
   if (window.aistudio && window.aistudio.openSelectKey) {
     await window.aistudio.openSelectKey();
   }
+};
+
+/**
+ * Constructs an intelligent prompt based on the input data type.
+ */
+export const constructIntelligentPrompt = (data: ImageGenerationData): string => {
+  // Check if it's conflict/event data
+  if ('conflictData' in data) {
+    const conflictData = data.conflictData;
+    const placeName = conflictData.place || conflictData.name || 'Unknown location';
+    const country = conflictData.country || '';
+    const year = conflictData.year || 'unknown time';
+    const context = conflictData.context || '';
+    
+    // Include coordinates if available for more precise location
+    let locationInfo = placeName;
+    if (country) {
+      locationInfo += `, ${country}`;
+    }
+    if (conflictData.lat && conflictData.lng) {
+      const latStr = `${Math.abs(conflictData.lat).toFixed(4)}° ${conflictData.lat >= 0 ? 'N' : 'S'}`;
+      const lngStr = `${Math.abs(conflictData.lng).toFixed(4)}° ${conflictData.lng >= 0 ? 'E' : 'W'}`;
+      locationInfo += ` (${latStr}, ${lngStr})`;
+    }
+    
+    let prompt = `Create a photorealistic image of ${locationInfo} during ${year}`;
+    
+    if (context) {
+      prompt += `, during the ${context}`;
+    }
+    
+    prompt += `. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Show the scene as it would have appeared during this period. High quality, detailed.`;
+    
+    return prompt;
+  }
+  
+  // Otherwise, it's user-placed pin data
+  const { location, date, time } = data;
+  if (!location || !date || !time) {
+    throw new Error('Missing required data for image generation');
+  }
+  
+  const latStr = `${Math.abs(location.lat).toFixed(4)}° ${location.lat >= 0 ? 'N' : 'S'}`;
+  const lngStr = `${Math.abs(location.lng).toFixed(4)}° ${location.lng >= 0 ? 'E' : 'W'}`;
+  const dateStr = `${date.month}/${date.day}/${date.year} ${date.era}`;
+  
+  return `Create an image at ${latStr}, ${lngStr}, ${dateStr}, ${time} hours. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Photorealistic, high quality.`;
+};
+
+/**
+ * Generates an image based on intelligent data analysis.
+ */
+export const generateImageFromData = async (data: ImageGenerationData): Promise<{ imageUrl: string; prompt: string }> => {
+  const prompt = constructIntelligentPrompt(data);
+  const imageUrl = await generateImageFromPrompt(prompt);
+  return { imageUrl, prompt };
 };
 
 /**

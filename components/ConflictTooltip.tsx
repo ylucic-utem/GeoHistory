@@ -4,6 +4,7 @@ import { Eye } from 'lucide-react';
 export type ConflictInfo = {
   name?: string;
   place?: string;
+  country?: string;
   year?: number | string;
   context?: string;
   lat?: number;
@@ -22,6 +23,7 @@ const ConflictTooltip: React.FC<Props> = ({ visible, x, y, data, onVisualize }) 
   if (!visible || !data) return null;
 
   const title = data.place ?? data.name ?? 'Unknown';
+  const subtitle = data.country ? `${data.country}` : '';
   const year = data.year ?? '';
   const context = data.context ?? '';
 
@@ -53,11 +55,11 @@ const ConflictTooltip: React.FC<Props> = ({ visible, x, y, data, onVisualize }) 
       aria-live="polite"
       role="tooltip"
     >
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>
-        {title}
-        {year ? ` — ${year}` : ''}
-      </div>
-      {context ? <div style={{ opacity: 0.9, marginBottom: 8 }}>{context}</div> : null}
+      {data.name && <div style={{ fontWeight: 600, marginBottom: 4 }}>{data.name}</div>}
+      {data.place && <div style={{ marginBottom: 2 }}>{data.place}</div>}
+      {data.country && <div style={{ marginBottom: 2 }}>{data.country}</div>}
+      {data.year && <div style={{ marginBottom: 2 }}>{data.year}</div>}
+      {data.context && <div style={{ opacity: 0.9, marginBottom: 8 }}>{data.context}</div>}
       
       {onVisualize && (
         <button
