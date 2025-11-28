@@ -9,6 +9,22 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+const DAYS_OF_WEEK = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+];
+
+/**
+ * Get day of week for a given date
+ */
+const getDayOfWeek = (year: number, month: number, day: number, era: 'CE' | 'BCE'): string => {
+  // For BCE dates, JavaScript Date uses negative years
+  const jsYear = era === 'BCE' ? -(year - 1) : year;
+  const jsMonth = month - 1; // JavaScript months are 0-based
+  
+  const date = new Date(jsYear, jsMonth, day);
+  return DAYS_OF_WEEK[date.getDay()];
+};
+
 /**
  * Format coordinates for display
  */
@@ -22,7 +38,35 @@ export const formatCoordinates = (lat: number, lng: number): string => {
  * Format date for display
  */
 export const formatDate = (date: { year: number; month: number; day: number; era: 'CE' | 'BCE' }): string => {
-  return `${MONTHS[date.month - 1]} ${date.day}, ${date.year} ${date.era}`;
+  const dayName = getDayOfWeek(date.year, date.month, date.day, date.era);
+  return `${dayName} ${MONTHS[date.month - 1]} ${date.day} of ${date.year} ${date.era}`;
+};
+
+/**
+ * Format location text for display, splitting into lines for better readability
+ */
+export const formatLocationText = (locationName: string | undefined, lat: number, lng: number): string[] => {
+  if (!locationName) {
+    return [formatCoordinates(lat, lng)];
+  }
+
+  // Split by comma and clean up
+  const parts = locationName.split(',').map(part => part.trim()).filter(part => part.length > 0);
+
+  if (parts.length === 1) {
+    // Only one part (e.g., just city or just country)
+    return [parts[0]];
+  } else if (parts.length === 2) {
+    // Two parts: likely "City, Country" - put on separate lines
+    return [parts[0], parts[1]];
+  } else if (parts.length >= 3) {
+    // Three or more parts: "City, State, Country" - city on first line, state/country on second
+    const city = parts[0];
+    const rest = parts.slice(1).join(', ');
+    return [city, rest];
+  }
+
+  return [locationName];
 };
 
 /**
@@ -33,6 +77,20 @@ export const formatTime = (time: string): string => {
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+
+/**
+ * Format date and time text for display, splitting into lines for better readability
+ */
+export const formatDateTimeText = (date: { year: number; month: number; day: number; era: 'CE' | 'BCE' }, time: string): string[] => {
+  const dayName = getDayOfWeek(date.year, date.month, date.day, date.era);
+  const formattedTime = formatTime(time);
+  
+  // Split into two lines for better readability
+  const line1 = `Moment taken in ${dayName} ${MONTHS[date.month - 1]} ${date.day}`;
+  const line2 = `of the year ${date.year} ${date.era} at ${formattedTime}`;
+  
+  return [line1, line2];
 };
 
 /**
@@ -57,7 +115,7 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
     const padding = basePadding * scale;
     const imageWidth = width - (padding * 2);
     const imageHeight = Math.round(imageWidth * (4 / 3)); // 3:4 aspect ratio
-    const textAreaHeight = 100 * scale; // Space for text and branding
+    const textAreaHeight = 120 * scale; // Space for text and branding (increased for multi-line location)
     const height = padding + imageHeight + textAreaHeight + padding;
     const borderRadius = 20 * scale;
 
@@ -101,20 +159,32 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       // Text section
       const textY = imgY + imageHeight + (24 * scale);
 
-      // Location name (main title)
+      // Location name (main title) - now supports multiple lines
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${20 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
-      // Use location name if available, otherwise use coordinates
-      const locationText = data.locationName || formatCoordinates(data.location.lat, data.location.lng);
-      ctx.fillText(locationText, padding, textY);
+      // Get location text lines
+      const locationLines = formatLocationText(data.locationName, data.location.lat, data.location.lng);
+      
+      // Draw each line of location text
+      let currentY = textY;
+      locationLines.forEach((line, index) => {
+        ctx.fillText(line, padding, currentY);
+        currentY += (24 * scale); // Line height
+      });
 
-      // Date and time (subtitle)
+      // Date and time (subtitle) - adjust Y position based on number of location lines
       ctx.fillStyle = '#b0c4ce';
       ctx.font = `${14 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
-      const dateTimeText = `${formatDate(data.date)} • ${formatTime(data.time)}`;
-      ctx.fillText(dateTimeText, padding, textY + (24 * scale));
+      // Get date/time text lines
+      const dateTimeLines = formatDateTimeText(data.date, data.time);
+      
+      // Draw each line of date/time text
+      dateTimeLines.forEach((line) => {
+        ctx.fillText(line, padding, currentY);
+        currentY += (18 * scale); // Smaller line height for subtitle
+      });
 
       // ChronoGlobe branding at bottom
       const brandY = height - padding;
@@ -202,7 +272,7 @@ export const shareToWhatsApp = async (data: ShareCardData): Promise<void> => {
   const timeText = formatTime(data.time);
   
   const message = encodeURIComponent(
-    `🌍 ChronoGlobe Time Travel\n\n📍 ${locationText}\n📅 ${dateText}\n⏰ ${timeText}\n\nExplore history at chronoglobe.app`
+    `🌍 ChronoGlobe Time Travel\n\n📍 ${locationText}\n📅 Moment taken in ${dateText} at ${timeText}\n\nExplore history at chronoglobe.app`
   );
   
   window.open(`https://wa.me/?text=${message}`, '_blank');
@@ -240,7 +310,7 @@ export const shareNative = async (data: ShareCardData): Promise<boolean> => {
     // Fallback: try sharing without files (just text)
     const textOnlyShare: ShareData = {
       title: 'ChronoGlobe',
-      text: `🌍 ChronoGlobe Time Travel\n\n📍 ${data.locationName || formatCoordinates(data.location.lat, data.location.lng)}\n📅 ${formatDate(data.date)} • ${formatTime(data.time)}\n\nDownload the app to explore history!`
+      text: `🌍 ChronoGlobe Time Travel\n\n📍 ${data.locationName || formatCoordinates(data.location.lat, data.location.lng)}\n📅 Moment taken in ${formatDate(data.date)} at ${formatTime(data.time)}\n\nDownload the app to explore history!`
     };
     
     if (navigator.canShare && navigator.canShare(textOnlyShare)) {

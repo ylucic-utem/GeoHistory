@@ -7,6 +7,7 @@ import ImageGallery from './components/ImageGallery';
 import { Coordinates, DateSelection, GeneratedImageResult, ConflictData } from './types';
 import { generateImageFromPrompt, checkApiKeySelection, requestApiKeySelection } from './services/geminiService';
 import { loadStoredImages, saveGeneratedImage, clearStoredImages } from './services/storageService';
+import { reverseGeocode, formatLocationName } from './services/geocodingService';
 import { Menu } from 'lucide-react';
 import { ConflictInfo } from './components/ConflictTooltip';
 
@@ -213,12 +214,18 @@ const App: React.FC = () => {
 
       // 2. Generate
       const imageUrl = await generateImageFromPrompt(prompt);
+
+      // 3. Reverse geocode the location
+      const geocodeResult = await reverseGeocode(selectedLocation.lat, selectedLocation.lng);
+      const locationName = formatLocationName(geocodeResult);
+
       const newImageResult: GeneratedImageResult = { 
         imageUrl, 
         prompt,
         location: selectedLocation,
         date: selectedDate,
-        time: selectedTime
+        time: selectedTime,
+        locationName
       };
       setGeneratedImages(prev => [newImageResult, ...prev]); // Add to front (newest first)
       setSelectedImageForView(newImageResult);
