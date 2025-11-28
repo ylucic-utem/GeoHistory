@@ -1,6 +1,7 @@
 import React from 'react';
 import { Coordinates, DateSelection } from '../types';
 import { Calendar, Clock, MapPin, Loader2, Image as ImageIcon, X, Map as MapIcon, Box } from 'lucide-react';
+import { visualizationConfig } from '../visualizationConfig';
 
 interface ControlPanelProps {
   selectedLocation: Coordinates | null;
@@ -132,9 +133,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
                 <button
                   onClick={onToggleShowConflicts}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
-                    showConflicts ? 'bg-red-600' : 'bg-gray-600'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                  style={{
+                    backgroundColor: showConflicts ? visualizationConfig.conflicts.color : '#4b5563',
+                    boxShadow: showConflicts ? `0 0 0 2px ${visualizationConfig.conflicts.color}40` : undefined
+                  }}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -150,9 +153,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
                 <button
                   onClick={onToggleShowEvents}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 ${
-                    showEvents ? 'bg-yellow-600' : 'bg-gray-600'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                  style={{
+                    backgroundColor: showEvents ? visualizationConfig.events.color : '#4b5563',
+                    boxShadow: showEvents ? `0 0 0 2px ${visualizationConfig.events.color}40` : undefined
+                  }}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

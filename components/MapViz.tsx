@@ -3,8 +3,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Coordinates } from '../types';
 import ConflictTooltip, { ConflictInfo } from './ConflictTooltip';
+import { visualizationConfig } from '../visualizationConfig';
 
-interface GlobeVizProps {
+interface MapVizProps {
   onLocationSelect: (coords: Coordinates) => void;
   selectedLocation: Coordinates | null;
   conflicts: any[];
@@ -14,7 +15,7 @@ interface GlobeVizProps {
   onConflictVisualize?: (conflictData: ConflictInfo) => void;
 }
 
-const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize }) => {
+const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -45,7 +46,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
       attributionControl: true,
       minZoom: 2,
       worldCopyJump: true
-    }).setView([-24, -74], 6); // Center at -74, -24 (lng, lat -> lat, lng for Leaflet)
+    }).setView([-33, -70.6], 9); // Center at -74, -24 (lng, lat -> lat, lng for Leaflet)
 
     // Add CartoDB Positron Tiles (light style similar to MapTiler Basic)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -102,9 +103,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
     if (selectedLocation) {
       const customIcon = L.divIcon({
         className: 'custom-pin-icon',
-        html: `<div style="width: 24px; height: 24px; background-color: #ef4444; border: 3px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
+        html: `<div style="width: ${visualizationConfig.selectedPin.size}px; height: ${visualizationConfig.selectedPin.size}px; background-color: ${visualizationConfig.selectedPin.backgroundColor}; border: ${visualizationConfig.selectedPin.borderWidth}px solid ${visualizationConfig.selectedPin.borderColor}; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [visualizationConfig.selectedPin.size, visualizationConfig.selectedPin.size],
+        iconAnchor: [visualizationConfig.selectedPin.size / 2, visualizationConfig.selectedPin.size],
       });
 
       const marker = L.marker([selectedLocation.lat, selectedLocation.lng], { icon: customIcon })
@@ -128,12 +129,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
       conflicts.forEach(conflict => {
         if (conflict.lat != null && conflict.lng != null && !isNaN(conflict.lat) && !isNaN(conflict.lng)) {
           const marker = L.circleMarker([conflict.lat, conflict.lng], {
-            radius: 3,
-            fillColor: 'red',
-            color: 'red',
-            weight: 0,
-            opacity: 1,
-            fillOpacity: 1
+            radius: visualizationConfig.conflicts.radius,
+            fillColor: visualizationConfig.conflicts.fillColor,
+            color: visualizationConfig.conflicts.color,
+            weight: visualizationConfig.conflicts.weight,
+            opacity: visualizationConfig.conflicts.opacity,
+            fillOpacity: visualizationConfig.conflicts.fillOpacity
           }).addTo(conflictsLayerRef.current!);
 
           marker.on('mouseover', (e: any) => {
@@ -206,12 +207,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
       events.forEach(event => {
         if (event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
           const marker = L.circleMarker([event.lat, event.lng], {
-            radius: 3,
-            fillColor: 'yellow',
-            color: 'yellow',
-            weight: 0,
-            opacity: 1,
-            fillOpacity: 1
+            radius: visualizationConfig.events.radius,
+            fillColor: visualizationConfig.events.fillColor,
+            color: visualizationConfig.events.color,
+            weight: visualizationConfig.events.weight,
+            opacity: visualizationConfig.events.opacity,
+            fillOpacity: visualizationConfig.events.fillOpacity
           }).addTo(eventsLayerRef.current!);
 
           marker.on('mouseover', (e: any) => {
@@ -288,4 +289,4 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onLocationSelect, selectedLocation,
   );
 };
 
-export default GlobeViz;
+export default MapViz;

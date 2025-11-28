@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import GlobeViz from './components/GlobeViz';
+import MapViz from './components/MapViz';
 import MapboxViz from './components/MapboxViz';
 import ControlPanel from './components/ControlPanel';
 import ImageResult from './components/ImageResult';
@@ -53,7 +53,7 @@ const App: React.FC = () => {
     setIsMobile(mobile);
     setIsControlPanelOpen(!mobile); // Open panel on desktop
     
-    // On mobile, use natural earth map view (GlobeViz)
+    // On mobile, use natural earth map view (MapViz)
     // On desktop, default to mapbox globe
     setViewMode(mobile ? 'map' : 'mapbox');
   }, []);
@@ -266,10 +266,10 @@ const App: React.FC = () => {
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden text-white">
       {/* Background Visualization Switcher */}
-      {/* On mobile: ALWAYS show GlobeViz (naturalEarth projection) */}
+      {/* On mobile: ALWAYS show MapViz (naturalEarth projection) */}
       {/* On desktop: Allow switching between map and mapbox views */}
       {isMobile ? (
-        <GlobeViz
+        <MapViz
           onLocationSelect={setSelectedLocation}
           selectedLocation={selectedLocation}
           conflicts={conflicts}
@@ -281,7 +281,7 @@ const App: React.FC = () => {
       ) : (
         <>
           {viewMode === 'map' && (
-            <GlobeViz
+            <MapViz
               onLocationSelect={setSelectedLocation}
               selectedLocation={selectedLocation}
               conflicts={conflicts}

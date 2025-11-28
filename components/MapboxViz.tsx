@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Coordinates } from '../types';
 import ConflictTooltip, { ConflictInfo } from './ConflictTooltip';
+import { visualizationConfig } from '../visualizationConfig';
 
 interface MapboxVizProps {
   onLocationSelect: (coords: Coordinates) => void;
@@ -68,18 +69,18 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         container: mapContainer.current,
         style: 'mapbox://styles/ylucic/cmif9gi5d002k01qrgk1q3jur',
         projection: 'globe' as any, // Cast to any to avoid type version conflicts
-        zoom: 3, // Start with world view as per request
-        center: [-74, -24]
+        zoom: 2, // Start with world view as per request
+        center: [-70.7, -33]
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     map.on('style.load', () => {
         map.setFog({
-            color: 'rgba(151, 151, 151, 0.2)', // Lower atmosphere
+            color: 'rgba(44, 44, 44, 0.2)', // Lower atmosphere
             'high-color': 'rgba(0, 0, 0, 1)', // Upper atmosphere
-            'horizon-blend': 0.02, // Atmosphere thickness (default 0.2 at low zooms)
-            'space-color': 'rgb(0, 0, 0)', // Background color
+            'horizon-blend': 0.00, // Atmosphere thickness (default 0.2 at low zooms)
+            'space-color': 'rgba(14, 14, 14, 1)', // Background color
             'star-intensity': 0.2 // Background star brightness (default 0.35 at low zoooms )
         });
         setIsStyleLoaded(true);
@@ -190,9 +191,9 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         type: 'circle',
         source: sourceId,
         paint: {
-          'circle-radius': 3,
-          'circle-color': 'red',
-          'circle-opacity': 1
+          'circle-radius': visualizationConfig.conflicts.radius,
+          'circle-color': visualizationConfig.conflicts.color,
+          'circle-opacity': visualizationConfig.conflicts.opacity
         }
       });
 
@@ -322,9 +323,9 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         type: 'circle',
         source: sourceId,
         paint: {
-          'circle-radius': 3,
-          'circle-color': 'yellow',
-          'circle-opacity': 1
+          'circle-radius': visualizationConfig.events.radius,
+          'circle-color': visualizationConfig.events.color,
+          'circle-opacity': visualizationConfig.events.opacity
         }
       });
 
