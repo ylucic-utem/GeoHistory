@@ -106,19 +106,10 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       return;
     }
 
-    // Card dimensions - optimized for 3:4 image aspect ratio
-    // Using 2x scale for better quality on retina displays and social media
-    const scale = 2;
-    const baseWidth = 360;
-    const basePadding = 20;
-    const width = baseWidth * scale;
-    const padding = basePadding * scale;
-    const imageWidth = width - (padding * 2);
-    const imageHeight = Math.round(imageWidth * (4 / 3)); // 3:4 aspect ratio
-    const textAreaHeight = 120 * scale; // Space for text and branding (increased for multi-line location)
-    const height = padding + imageHeight + textAreaHeight + padding;
-    const borderRadius = 20 * scale;
-
+    // Card dimensions - optimized for 9:16 aspect ratio (Instagram Stories, TikTok, etc.)
+    const width = 1080;
+    const height = 1920;
+    
     canvas.width = width;
     canvas.height = height;
 
@@ -127,93 +118,131 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
     img.crossOrigin = 'anonymous';
     
     img.onload = () => {
-      // Background gradient (dark teal like Spotify card)
-      const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, '#1a3a4a');
-      gradient.addColorStop(1, '#0f2a35');
+      // 1. Draw the main image covering the entire canvas (object-fit: cover)
+      const imgRatio = img.width / img.height;
+      const canvasRatio = width / height;
       
-      // Draw rounded rectangle background
-      ctx.beginPath();
-      ctx.roundRect(0, 0, width, height, borderRadius);
+      let renderWidth, renderHeight, offsetX, offsetY;
+      
+      if (imgRatio > canvasRatio) {
+        // Image is wider than canvas
+        renderHeight = height;
+        renderWidth = img.width * (height / img.height);
+        offsetX = (width - renderWidth) / 2;
+        offsetY = 0;
+      } else {
+        // Image is taller than canvas
+        renderWidth = width;
+        renderHeight = img.height * (width / img.width);
+        offsetX = 0;
+        offsetY = (height - renderHeight) / 2;
+      }
+      
+      ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+
+      // 2. Add gradient overlay (from black/60 via black/20 to transparent)
+      const gradientHeight = height * 0.6; // Gradient covers bottom 60%
+      const gradient = ctx.createLinearGradient(0, height - gradientHeight, 0, height);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.2)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+      
       ctx.fillStyle = gradient;
-      ctx.fill();
+      ctx.fillRect(0, height - gradientHeight, width, gradientHeight);
 
-      // Draw the main image with rounded corners (3:4 aspect ratio)
-      const imgY = padding;
+      // 3. Text Configuration
+      const padding = 80;
+      const bottomMargin = 80; // Space from bottom
       
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(padding, imgY, imageWidth, imageHeight, 12 * scale);
-      ctx.clip();
+      // Font setup
+      const fontMono = '"Roboto Mono", monospace';
+      const fontSans = '"Manrope", sans-serif';
       
-      // Calculate aspect ratio to cover the 3:4 frame
-      const imgScale = Math.max(imageWidth / img.width, imageHeight / img.height);
-      const scaledWidth = img.width * imgScale;
-      const scaledHeight = img.height * imgScale;
-      const offsetX = padding + (imageWidth - scaledWidth) / 2;
-      const offsetY = imgY + (imageHeight - scaledHeight) / 2;
+      // "Made in ChronoGlobe" branding - Top Left
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = `500 28px ${fontMono}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText('Made in ChronoGlobe', padding, 60);
+      ctx.shadowColor = 'transparent';
       
-      ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-      ctx.restore();
-
-      // Text section
-      const textY = imgY + imageHeight + (24 * scale);
-
-      // Location name (main title) - now supports multiple lines
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${20 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      
-      // Get location text lines
+      // Handle location text
       const locationLines = formatLocationText(data.locationName, data.location.lat, data.location.lng);
       
-      // Draw each line of location text
-      let currentY = textY;
-      locationLines.forEach((line, index) => {
-        ctx.fillText(line, padding, currentY);
-        currentY += (24 * scale); // Line height
-      });
-
-      // Date and time (subtitle) - adjust Y position based on number of location lines
-      ctx.fillStyle = '#b0c4ce';
-      ctx.font = `${14 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      // Calculate positions from bottom up
+      let currentY = height - bottomMargin;
       
-      // Get date/time text lines
+      // Date and Time (Bottom most)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = `40px ${fontSans}`;
+      ctx.textBaseline = 'bottom';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      
       const dateTimeLines = formatDateTimeText(data.date, data.time);
+      // We only want one line for date/time if possible, or stack them
+      // The example shows "Moment taken in..." as one line
+      const dateTimeText = `Moment taken in ${formatDate(data.date)} at ${formatTime(data.time)}`;
       
-      // Draw each line of date/time text
-      dateTimeLines.forEach((line) => {
-        ctx.fillText(line, padding, currentY);
-        currentY += (18 * scale); // Smaller line height for subtitle
-      });
-
-      // ChronoGlobe branding at bottom
-      const brandY = height - padding;
-      const iconSize = 10 * scale;
+      // Check if it fits, otherwise split
+      if (ctx.measureText(dateTimeText).width > width - (padding * 2)) {
+         // Split if too long
+         dateTimeLines.reverse().forEach(line => {
+             ctx.fillText(line, padding, currentY);
+             currentY -= 50;
+         });
+      } else {
+          ctx.fillText(dateTimeText, padding, currentY);
+          currentY -= 50;
+      }
       
-      // Draw ChronoGlobe logo/icon (globe icon representation)
-      ctx.fillStyle = '#4ade80'; // Green accent
-      ctx.beginPath();
-      ctx.arc(padding + iconSize, brandY - (8 * scale), iconSize, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.shadowColor = 'transparent';
       
-      // Globe lines
-      ctx.strokeStyle = '#1a3a4a';
-      ctx.lineWidth = 1.5 * scale;
-      ctx.beginPath();
-      ctx.ellipse(padding + iconSize, brandY - (8 * scale), iconSize, iconSize, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(padding + iconSize, brandY - (8 * scale), iconSize / 2, iconSize, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(padding, brandY - (8 * scale));
-      ctx.lineTo(padding + (20 * scale), brandY - (8 * scale));
-      ctx.stroke();
-
-      // ChronoGlobe text
+      currentY -= 20; // Gap
+      
+      // Location Subtitle (Region/Country) - Second line of location if available
+      if (locationLines.length > 1) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.font = `500 48px ${fontSans}`;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 2;
+          
+          // Join the rest of the lines
+          const subtitle = locationLines.slice(1).join(', ');
+          ctx.fillText(subtitle, padding, currentY);
+          currentY -= 60;
+          
+          ctx.shadowColor = 'transparent';
+      }
+      
+      currentY -= 10; // Gap
+      
+      // Location Title (City) - First line
       ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${16 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.fillText('ChronoGlobe', padding + (28 * scale), brandY - (4 * scale));
+      ctx.font = `800 96px ${fontSans}`; // Extra bold, large
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      
+      const title = locationLines[0];
+      // Auto-scale title
+      let fontSize = 96;
+      const maxWidth = width - (padding * 2);
+      while (ctx.measureText(title).width > maxWidth && fontSize > 40) {
+          fontSize -= 4;
+          ctx.font = `800 ${fontSize}px ${fontSans}`;
+      }
+      
+      ctx.fillText(title, padding, currentY);
 
       // Convert to data URL
       resolve(canvas.toDataURL('image/png', 1.0));

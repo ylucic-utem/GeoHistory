@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ChronoGlobe Share Card Refined</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&amp;family=Manrope:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#0ea5e9", // A vibrant blue for CTA, adaptable to both modes.
+            "background-light": "#f3f4f6", // Light Gray
+            "background-dark": "#111827", // Dark Blue/Gray
+          },
+          fontFamily: {
+            sans: ["Manrope", "sans-serif"],
+            mono: ["Roboto Mono", "monospace"],
+          },
+          borderRadius: {
+            DEFAULT: "1rem",
+          },
+        },
+      },
+    };
+  </script>
+<style>
+    body {
+      font-family: 'Manrope', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+<div class="w-full max-w-sm mx-auto">
+<div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+<div class="relative aspect-[9/16]">
+<img alt="A serene landscape with a futuristic city in the background and a person sitting on a hill of flowers in the foreground." class="absolute inset-0 w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAr4Wuj_zuyU95g3T1ks1GBwwUjfTa1JdNvCu_SltynEpSIGRTJwaFZRORLye7-kshMJBHPUaIOTt6yd1rcaxl-iziTgVf60EVsEyQMgHP7YqlmlTZK6eM0L1SSfJtvaFPuqKPympEMtj5PcaZzULnDDaE1pk7MCXPKM4fdmJhG-JVJGJgV-iGZZvz_lck8NmtlFPEx44PTJ_7KS8pbk862h-JcmXq83Fpic2ETK-WKVNMPgUxBhNUf9o9JVBQDWUsNNn90mdCLmUp"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+<div class="absolute top-0 left-0 w-full p-6">
+<p class="font-mono text-white/90 text-xs font-medium tracking-wide">Made in ChronoGlobe</p>
+</div>
+<div class="absolute bottom-0 left-0 w-full p-6 text-white">
+<h1 class="font-sans text-4xl font-extrabold leading-tight mb-2">Santiago</h1>
+<h2 class="text-lg font-medium text-white/90 mb-3">Santiago Metropolitan Region, Chile</h2>
+<p class="text-sm text-white/80">Moment taken in Thursday November 27 of the year 2025 CE at 12:00 PM</p>
+</div>
+</div>
+<div class="p-6 flex justify-center items-center space-x-3">
+<button class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+<span class="material-icons-outlined text-base">download</span>
+<span>Download</span>
+</button>
+<button class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors">
+<span class="material-icons-outlined text-base">share</span>
+<span>Share</span>
+</button>
+</div>
+</div>
+</div>
+
+</body></html>

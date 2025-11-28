@@ -4,7 +4,10 @@ import { ShareCardData } from '../types';
 import {
   generateShareCardImage,
   downloadOriginalImage,
-  shareNative
+  shareNative,
+  formatLocationText,
+  formatDateTimeText,
+  downloadShareCard
 } from '../services/shareService';
 
 interface ShareCardProps {
@@ -14,6 +17,11 @@ interface ShareCardProps {
 }
 
 const ShareCard: React.FC<ShareCardProps> = ({ data, isOpen, onClose }) => {
+  // Blur gradient configuration
+  const blurIntensity = 10; // px
+  const bottomBlurOpacity = 0.4; // How much blur at bottom
+  const topBlurOpacity = 0.0; // How much blur at top (0 = no blur)
+  const blurHeightFraction = 0.3; // Fraction of card height for blur gradient (at least 1/5 as requested)
   const [cardImageUrl, setCardImageUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +82,7 @@ const ShareCard: React.FC<ShareCardProps> = ({ data, isOpen, onClose }) => {
 
   const handleDownload = async () => {
     try {
-      await downloadOriginalImage(data.imageUrl);
+      await downloadShareCard(data);
     } catch (err) {
       setError('Failed to download image');
     }
@@ -92,77 +100,87 @@ const ShareCard: React.FC<ShareCardProps> = ({ data, isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const locationLines = formatLocationText(data.locationName, data.location.lat, data.location.lng);
+  const dateTimeLines = formatDateTimeText(data.date, data.time);
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
       <div
         ref={modalRef}
-        className="bg-gray-900 border border-white/10 rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col"
+        className="w-full max-w-sm mx-auto"
       >
-        {/* Header */}
-        <div className="p-3 border-b border-white/10 flex justify-between items-center bg-gray-950 flex-shrink-0">
-          <h3 className="text-base font-semibold text-white flex items-center gap-2">
-            <Share2 className="w-4 h-4 text-green-400" />
-            Share Creation
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Card Preview */}
-        <div className="p-4 flex flex-col items-center bg-gradient-to-b from-gray-900 to-gray-950 overflow-y-auto flex-1 min-h-0">
-          {isGenerating ? (
-            <div className="w-full aspect-[3/4] max-w-[280px] bg-white/5 rounded-xl flex items-center justify-center">
-              <div className="text-center">
-                <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-2" />
-                <p className="text-sm text-gray-400">Generating share card...</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+          <div className="relative aspect-[9/16]">
+            {isGenerating ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Generating share card...</p>
+                </div>
               </div>
-            </div>
-          ) : cardImageUrl ? (
-            <img
-              src={cardImageUrl}
-              alt="Share Card Preview"
-              className="w-full max-w-[280px] rounded-xl shadow-2xl border border-white/10"
-            />
-          ) : null}
+            ) : (
+              <>
+                <img
+                  alt="A serene landscape with a futuristic city in the background and a person sitting on a hill of flowers in the foreground."
+                  className="absolute inset-0 w-full h-full object-cover"
+                  src={data.imageUrl}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                {/* Blur gradient overlay for better text readability */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backdropFilter: `blur(${blurIntensity}px)`,
+                    maskImage: `linear-gradient(to top, rgba(0,0,0,${bottomBlurOpacity}) 0%, rgba(0,0,0,${topBlurOpacity}) ${blurHeightFraction * 100}%, transparent ${blurHeightFraction * 100}%, transparent 100%)`,
+                    WebkitMaskImage: `linear-gradient(to top, rgba(0,0,0,${bottomBlurOpacity}) 0%, rgba(0,0,0,${topBlurOpacity}) ${blurHeightFraction * 100}%, transparent ${blurHeightFraction * 100}%, transparent 100%)`,
+                  }}
+                ></div>
+                <div className="absolute top-0 left-0 w-full p-6">
+                  <p className="font-mono text-white/90 text-xs font-medium tracking-wide" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>Made in ChronoGlobe</p>
+                </div>
+                <div className="absolute bottom-0 left-0 w-full p-6 text-white">
+                  <h1 className="font-sans text-4xl font-extrabold leading-tight mb-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{locationLines[0]}</h1>
+                  {locationLines.length > 1 && (
+                    <h2 className="text-lg font-medium text-white/90 mb-3" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{locationLines.slice(1).join(', ')}</h2>
+                  )}
+                  <p className="text-sm text-white/80" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{dateTimeLines.join(' ')}</p>
+                </div>
+              </>
+            )}
 
-          {/* Error message - shown below card */}
-          {error && (
-            <div className="mt-3 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm text-red-400 text-center">{error}</p>
-            </div>
-          )}
-        </div>
+            {/* Close Button - Absolute top right */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-        {/* Share Actions - Simplified */}
-        <div className="p-3 border-t border-white/10 bg-gray-950 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+            {/* Error message */}
+            {error && (
+              <div className="absolute bottom-4 left-4 right-4 px-4 py-2 bg-red-500/90 text-white rounded-lg z-10 text-center text-sm">
+                {error}
+              </div>
+            )}
+          </div>
+          <div className="p-6 flex justify-center items-center space-x-3">
             <button
               onClick={handleDownload}
               disabled={isGenerating || !cardImageUrl}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="w-3.5 h-3.5" />
-              Download Original
+              <Download className="w-4 h-4" />
+              <span>Download</span>
             </button>
-            
             <button
               onClick={handleShareOnSocials}
               disabled={isGenerating || !cardImageUrl}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Share2 className="w-3.5 h-3.5" />
-              Share
+              <Share2 className="w-4 h-4" />
+              <span>Share</span>
             </button>
           </div>
-
-          {/* Tip */}
-          <p className="text-[11px] text-gray-500 text-center">
-            Share directly to WhatsApp, Instagram, or any app!
-          </p>
         </div>
       </div>
     </div>
