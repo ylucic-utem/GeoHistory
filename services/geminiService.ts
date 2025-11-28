@@ -76,7 +76,27 @@ export const constructIntelligentPrompt = (data: ImageGenerationData): string =>
       prompt += `, during the ${context}`;
     }
     
-    prompt += `. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Show the scene as it would have appeared during this period. High quality, detailed.`;
+    // Detect if this is a conflict/war-related event
+    const isConflict = context && (
+      context.toLowerCase().includes('war') || 
+      context.toLowerCase().includes('battle') || 
+      context.toLowerCase().includes('conflict') || 
+      context.toLowerCase().includes('invasion') || 
+      context.toLowerCase().includes('revolution') ||
+      conflictData.name && (
+        conflictData.name.toLowerCase().includes('battle') ||
+        conflictData.name.toLowerCase().includes('siege') ||
+        conflictData.name.toLowerCase().includes('war')
+      )
+    );
+    
+    if (isConflict) {
+      prompt += `. Create a documentary-style image that captures the gravity and human impact of this conflict. Show the strategic location, military elements, and atmospheric conditions that convey the historical significance. Use realistic lighting and composition typical of historical documentation.`;
+    } else {
+      prompt += `. Create a documentary-style image that authentically represents this historical moment. Draw upon historical knowledge to show the cultural, technological, and environmental context of the era, including appropriate architecture, clothing, and daily life elements.`;
+    }
+    
+    prompt += ` Focus on educational accuracy and the genuine feel of the time period. Photorealistic, high quality, detailed.`;
     
     return prompt;
   }
@@ -91,7 +111,7 @@ export const constructIntelligentPrompt = (data: ImageGenerationData): string =>
   const lngStr = `${Math.abs(location.lng).toFixed(4)}° ${location.lng >= 0 ? 'E' : 'W'}`;
   const dateStr = `${date.month}/${date.day}/${date.year} ${date.era}`;
   
-  return `Create an image at ${latStr}, ${lngStr}, ${dateStr}, ${time} hours. Capture the historical atmosphere, architecture, and environment accurately for this specific time and place. Photorealistic, high quality.`;
+  return `Create a documentary-style image at ${latStr}, ${lngStr}, ${dateStr}, ${time} hours. Draw upon historical knowledge to authentically depict the location and era, showing the architecture, environment, and cultural elements that would have been present. Focus on educational accuracy and the genuine atmosphere of the time period. Photorealistic, high quality, detailed.`;
 };
 
 /**
