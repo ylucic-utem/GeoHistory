@@ -162,36 +162,38 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
             fillOpacity: visualizationConfig.conflicts.fillOpacity
           }).addTo(conflictsLayerRef.current!);
 
-          marker.on('mouseover', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
-            setTooltip({
-              visible: true,
-              x: ev.clientX,
-              y: ev.clientY,
-              data: {
-                name: conflict.name,
-                place: conflict.country,
-                year: conflict.year,
-                context: conflict.context,
-                lat: conflict.lat,
-                lng: conflict.lng,
-              },
-              pinned: false
+          if (!L.Browser.mobile) {
+            marker.on('mouseover', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              setTooltip({
+                visible: true,
+                x: ev.clientX,
+                y: ev.clientY,
+                data: {
+                  name: conflict.name,
+                  place: conflict.country,
+                  year: conflict.year,
+                  context: conflict.context,
+                  lat: conflict.lat,
+                  lng: conflict.lng,
+                },
+                pinned: false
+              });
+              pinnedRef.current = false;
             });
-            pinnedRef.current = false;
-          });
-          marker.on('mouseout', () => {
-            // If pinned, ignore hover-out events to keep tooltip visible
-            if (!pinnedRef.current) {
-              setTooltip(t => ({ ...t, visible: false }));
-            }
-          });
-          marker.on('mousemove', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
-            if (!pinnedRef.current) {
-              setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
-            }
-          });
+            marker.on('mouseout', () => {
+              // If pinned, ignore hover-out events to keep tooltip visible
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, visible: false }));
+              }
+            });
+            marker.on('mousemove', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
+              }
+            });
+          }
           // Pin tooltip and place main pin on click
           const anchorTooltip = (lat: number, lng: number, data: any) => {
             const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
@@ -209,6 +211,10 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
           marker.on('click', (e: any) => {
             // Stop propagation to prevent map click handler from firing
             L.DomEvent.stopPropagation(e);
+            // Touch-safe coordinate detection (not used for anchoring here but kept for robustness)
+            const oe: any = e && e.originalEvent ? e.originalEvent : undefined;
+            const clientX = oe?.clientX ?? oe?.changedTouches?.[0]?.clientX;
+            const clientY = oe?.clientY ?? oe?.changedTouches?.[0]?.clientY;
             anchorTooltip(conflict.lat, conflict.lng, {
               name: conflict.name,
               place: conflict.place,
@@ -261,37 +267,39 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
             fillOpacity: visualizationConfig.events.fillOpacity
           }).addTo(eventsLayerRef.current!);
 
-          marker.on('mouseover', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
-            setTooltip({
-              visible: true,
-              x: ev.clientX,
-              y: ev.clientY,
-              data: {
-                name: event.name,
-                place: event.place,
-                country: event.country,
-                year: event.year,
-                context: event.context,
-                lat: event.lat,
-                lng: event.lng,
-              },
-              pinned: false
+          if (!L.Browser.mobile) {
+            marker.on('mouseover', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              setTooltip({
+                visible: true,
+                x: ev.clientX,
+                y: ev.clientY,
+                data: {
+                  name: event.name,
+                  place: event.place,
+                  country: event.country,
+                  year: event.year,
+                  context: event.context,
+                  lat: event.lat,
+                  lng: event.lng,
+                },
+                pinned: false
+              });
+              pinnedRef.current = false;
             });
-            pinnedRef.current = false;
-          });
-          marker.on('mouseout', () => {
-            // If pinned, ignore hover-out events to keep tooltip visible
-            if (!pinnedRef.current) {
-              setTooltip(t => ({ ...t, visible: false }));
-            }
-          });
-          marker.on('mousemove', (e: any) => {
-            const ev = e.originalEvent as MouseEvent;
-            if (!pinnedRef.current) {
-              setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
-            }
-          });
+            marker.on('mouseout', () => {
+              // If pinned, ignore hover-out events to keep tooltip visible
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, visible: false }));
+              }
+            });
+            marker.on('mousemove', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
+              }
+            });
+          }
           // Pin tooltip and place main pin on click
           const anchorTooltip = (lat: number, lng: number, data: any) => {
             const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
@@ -309,6 +317,10 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
           marker.on('click', (e: any) => {
             // Stop propagation to prevent map click handler from firing
             L.DomEvent.stopPropagation(e);
+            // Touch-safe coordinate detection (not used for anchoring here but kept for robustness)
+            const oe: any = e && e.originalEvent ? e.originalEvent : undefined;
+            const clientX = oe?.clientX ?? oe?.changedTouches?.[0]?.clientX;
+            const clientY = oe?.clientY ?? oe?.changedTouches?.[0]?.clientY;
             anchorTooltip(event.lat, event.lng, {
               name: event.name,
               place: event.place,
