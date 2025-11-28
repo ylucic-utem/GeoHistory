@@ -13,9 +13,10 @@ interface MapVizProps {
   events: any[];
   showEvents: boolean;
   onConflictVisualize?: (conflictData: ConflictInfo) => void;
+  onEventVisualize?: (eventData: any) => void;
 }
 
-const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize }) => {
+const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize, onEventVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -178,7 +179,8 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
               y: ev.clientY,
               data: {
                 name: conflict.name,
-                place: conflict.country,
+                place: conflict.place,
+                country: conflict.country,
                 year: conflict.year,
                 context: conflict.context,
                 lat: conflict.lat,
@@ -251,19 +253,20 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
             const ev = e.originalEvent as MouseEvent;
             // Stop propagation to prevent map click handler from firing
             L.DomEvent.stopPropagation(e);
+            const eventData = {
+              name: event.name,
+              place: event.place,
+              country: event.country,
+              year: event.year,
+              context: event.context,
+              lat: event.lat,
+              lng: event.lng,
+            };
             setTooltip({
               visible: true,
               x: ev.clientX,
               y: ev.clientY,
-              data: {
-                name: event.name,
-                place: event.place,
-                country: event.country,
-                year: event.year,
-                context: event.context,
-                lat: event.lat,
-                lng: event.lng,
-              },
+              data: eventData,
               pinned: true
             });
             pinnedRef.current = true;

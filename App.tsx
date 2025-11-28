@@ -147,12 +147,6 @@ const App: React.FC = () => {
       if (conflictData.country) {
         locationName += `, ${conflictData.country}`;
       }
-      if (conflictData.context) {
-        locationName += `, ${conflictData.context}`;
-      }
-      if (conflictData.year) {
-        locationName += `, ${conflictData.year}`;
-      }
       
       const newImageResult: GeneratedImageResult = { 
         imageUrl, 

@@ -36,6 +36,7 @@ export interface ShareCardData {
   date: DateSelection;
   time: string;
   locationName?: string;
+  context?: string;
 }
 
 // Global declaration for the AI Studio key selection

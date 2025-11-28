@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratedImageResult, ShareCardData, Coordinates, DateSelection } from '../types';
-import { X, Share2, Sparkles } from 'lucide-react';
-import { shareNative } from '../services/shareService';
+import { X, Share2, Sparkles, Download } from 'lucide-react';
+import { shareNative, downloadShareCard } from '../services/shareService';
 
 interface ImageResultProps {
   result: GeneratedImageResult | null;
@@ -37,7 +37,7 @@ const ImageResult: React.FC<ImageResultProps> = ({
   // Check if we have all the data needed for sharing
   const canShare = result.imageUrl && location && date && time;
 
-  // Handle sharing directly
+  // Handle sharing with web share API
   const handleShare = async () => {
     if (!canShare) return;
     
@@ -46,13 +46,34 @@ const ImageResult: React.FC<ImageResultProps> = ({
       location: location!,
       date: date!,
       time: time!,
-      locationName: result.locationName
+      locationName: result.locationName,
+      context: result.conflictData?.context
     };
 
     const shared = await shareNative(shareData);
     if (!shared) {
       // Fallback: could show a message or something
       console.log('Share not available');
+    }
+  };
+
+  // Handle downloading the share card
+  const handleDownload = async () => {
+    if (!canShare) return;
+    
+    const shareData: ShareCardData = {
+      imageUrl: result.imageUrl!,
+      location: location!,
+      date: date!,
+      time: time!,
+      locationName: result.locationName,
+      context: result.conflictData?.context
+    };
+
+    try {
+      await downloadShareCard(shareData);
+    } catch (error) {
+      console.error('Failed to download share card:', error);
     }
   };
 
@@ -149,15 +170,24 @@ const ImageResult: React.FC<ImageResultProps> = ({
             </div>
             
             {/* Action buttons */}
-            <div className="p-6 flex justify-center">
+            <div className="p-6 flex justify-center items-center space-x-3">
               {canShare && (
-                <button
-                  onClick={handleShare}
-                  className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Share Moment</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Share</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

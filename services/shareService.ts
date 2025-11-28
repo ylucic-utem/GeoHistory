@@ -80,6 +80,31 @@ export const formatTime = (time: string): string => {
 };
 
 /**
+ * Wrap text to fit within a maximum width
+ */
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
+
+/**
  * Format date and time text for display, splitting into lines for better readability
  */
 export const formatDateTimeText = (date: { year: number; month: number; day: number; era: 'CE' | 'BCE' }, time: string): string[] => {
@@ -224,6 +249,28 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       }
       
       currentY -= 10; // Gap
+      
+      // Context text (if available) - wrap and display
+      if (data.context) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.font = `400 36px ${fontSans}`;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 2;
+          
+          const maxWidth = width - (padding * 2);
+          const contextLines = wrapText(ctx, data.context, maxWidth);
+          
+          // Draw each line from bottom to top
+          for (let i = contextLines.length - 1; i >= 0; i--) {
+              ctx.fillText(contextLines[i], padding, currentY);
+              currentY -= 42; // Line height
+          }
+          
+          ctx.shadowColor = 'transparent';
+          currentY -= 10; // Gap after context
+      }
       
       // Location Title (City) - First line
       ctx.fillStyle = '#ffffff';

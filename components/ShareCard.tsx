@@ -143,6 +143,9 @@ const ShareCard: React.FC<ShareCardProps> = ({ data, isOpen, onClose }) => {
                   {locationLines.length > 1 && (
                     <h2 className="text-lg font-medium text-white/90 mb-3" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{locationLines.slice(1).join(', ')}</h2>
                   )}
+                  {data.context && (
+                    <p className="text-base text-white/85 mb-3 leading-relaxed break-words" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{data.context}</p>
+                  )}
                   <p className="text-sm text-white/80" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{dateTimeLines.join(' ')}</p>
                 </div>
               </>
