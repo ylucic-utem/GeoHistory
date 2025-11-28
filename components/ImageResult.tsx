@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GeneratedImageResult, ShareCardData, Coordinates, DateSelection } from '../types';
-import { X, Share2, MapPin, Calendar } from 'lucide-react';
-import ShareCard from './ShareCard';
+import { X, Share2, Sparkles } from 'lucide-react';
+import { shareNative } from '../services/shareService';
 
 interface ImageResultProps {
   result: GeneratedImageResult | null;
@@ -24,20 +24,37 @@ const ImageResult: React.FC<ImageResultProps> = ({
   date,
   time 
 }) => {
-  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [showText, setShowText] = useState(false);
+
+  useEffect(() => {
+    // Delay text appearance for dramatic effect
+    const timer = setTimeout(() => setShowText(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!result) return null;
 
   // Check if we have all the data needed for sharing
   const canShare = result.imageUrl && location && date && time;
-  
-  const shareData: ShareCardData | null = canShare ? {
-    imageUrl: result.imageUrl!,
-    location: location!,
-    date: date!,
-    time: time!,
-    locationName: result.locationName // Include location name if available (from conflicts)
-  } : null;
+
+  // Handle sharing directly
+  const handleShare = async () => {
+    if (!canShare) return;
+    
+    const shareData: ShareCardData = {
+      imageUrl: result.imageUrl!,
+      location: location!,
+      date: date!,
+      time: time!,
+      locationName: result.locationName
+    };
+
+    const shared = await shareNative(shareData);
+    if (!shared) {
+      // Fallback: could show a message or something
+      console.log('Share not available');
+    }
+  };
 
   // Format location for display
   const formatLocation = () => {
@@ -68,71 +85,84 @@ const ImageResult: React.FC<ImageResultProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-        <div className="bg-gray-900 border border-white/10 rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-          
-          {/* Header */}
-          <div className="p-4 border-b border-white/10 flex justify-between items-center bg-gray-950">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-400"></span>
-              Generated Moment
-            </h3>
-            <div className="flex gap-1">
-              {/* Share Button */}
-              {canShare && (
-                <button 
-                  onClick={() => setIsShareOpen(true)}
-                  className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-green-400 transition-colors"
-                  title="Share"
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="w-full max-w-sm mx-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+            <div className="relative aspect-[9/16]">
+              {result.imageUrl ? (
+                <>
+                  <img 
+                    src={result.imageUrl} 
+                    alt="Generated AI View" 
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+                  
+                  {/* Animated text overlays */}
+                  <div className="absolute top-0 left-0 w-full p-6">
+                    <div className={`transition-all duration-1000 ${showText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                      <p className="font-mono text-white/90 text-xs font-medium tracking-wide flex items-center gap-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
+                        Generated Moment
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="absolute bottom-0 left-0 w-full p-6 text-white">
+                    <div className={`transition-all duration-1000 delay-300 ${showText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                      <h1 className="font-sans text-3xl font-extrabold leading-tight mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        {formatLocation().split(',')[0]}
+                      </h1>
+                    </div>
+                    
+                    {formatLocation().includes(',') && (
+                      <div className={`transition-all duration-1000 delay-500 ${showText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                        <h2 className="text-lg font-medium text-white/90 mb-3" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                          {formatLocation().split(',').slice(1).join(',').trim()}
+                        </h2>
+                      </div>
+                    )}
+                    
+                    <div className={`transition-all duration-1000 delay-700 ${showText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                      <p className="text-sm text-white/80" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        {formatDate()} at {formatTime()}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+                  <div className="text-center">
+                    <div className="text-red-400 text-lg font-semibold mb-2">Generation Failed</div>
+                    <p className="text-gray-500 dark:text-gray-400">Unable to create the historical moment</p>
+                  </div>
+                </div>
               )}
-              <button 
+
+              {/* Close Button */}
+              <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+                className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-auto p-4 flex flex-col items-center justify-center bg-black/50">
-            {result.imageUrl ? (
-              <img 
-                src={result.imageUrl} 
-                alt="Generated AI View" 
-                className="max-h-[60vh] rounded-lg shadow-lg border border-white/5"
-              />
-            ) : (
-              <div className="text-red-400">Image generation failed.</div>
-            )}
             
-            {/* Location and Date Info */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-sm">
-              <div className="flex items-center gap-2 text-gray-300 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                <MapPin className="w-4 h-4 text-green-400" />
-                <span>{formatLocation()}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                <Calendar className="w-4 h-4 text-blue-400" />
-                <span>{formatDate()} • {formatTime()}</span>
-              </div>
+            {/* Action buttons */}
+            <div className="p-6 flex justify-center">
+              {canShare && (
+                <button
+                  onClick={handleShare}
+                  className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-white bg-primary rounded-full hover:bg-opacity-90 transition-colors"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Share Moment</span>
+                </button>
+              )}
             </div>
           </div>
-
         </div>
       </div>
-
-      {/* Share Card Modal */}
-      {shareData && (
-        <ShareCard 
-          data={shareData}
-          isOpen={isShareOpen}
-          onClose={() => setIsShareOpen(false)}
-        />
-      )}
     </>
   );
 };
