@@ -185,14 +185,14 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       
       // "Made in ChronoGlobe" branding - Top Left
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.font = `500 28px ${fontMono}`;
+      ctx.font = `500 32px ${fontMono}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 2;
-      ctx.fillText('Made in ChronoGlobe', padding, 60);
+      ctx.fillText('Made in ChronoGlobe', padding, padding);
       ctx.shadowColor = 'transparent';
       
       // Handle location text
@@ -203,29 +203,21 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       
       // Date and Time (Bottom most)
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.font = `40px ${fontSans}`;
+      ctx.font = `400 38px ${fontSans}`;
       ctx.textBaseline = 'bottom';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 2;
       
-      const dateTimeLines = formatDateTimeText(data.date, data.time);
-      // We only want one line for date/time if possible, or stack them
-      // The example shows "Moment taken in..." as one line
-      const dateTimeText = `Moment taken in ${formatDate(data.date)} at ${formatTime(data.time)}`;
+      // Create single line date/time text matching ImageResult format
+      const dayName = getDayOfWeek(data.date.year, data.date.month, data.date.day, data.date.era);
+      const formattedTime = formatTime(data.time);
+      const monthName = MONTHS[data.date.month - 1];
+      const dateTimeText = `Moment taken in ${dayName} ${monthName} ${data.date.day} of the year ${data.date.year} ${data.date.era} at ${formattedTime}`;
       
-      // Check if it fits, otherwise split
-      if (ctx.measureText(dateTimeText).width > width - (padding * 2)) {
-         // Split if too long
-         dateTimeLines.reverse().forEach(line => {
-             ctx.fillText(line, padding, currentY);
-             currentY -= 50;
-         });
-      } else {
-          ctx.fillText(dateTimeText, padding, currentY);
-          currentY -= 50;
-      }
+      ctx.fillText(dateTimeText, padding, currentY);
+      currentY -= 50;
       
       ctx.shadowColor = 'transparent';
       
@@ -234,7 +226,7 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
       // Location Subtitle (Region/Country) - Second line of location if available
       if (locationLines.length > 1) {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.font = `500 48px ${fontSans}`;
+          ctx.font = `500 50px ${fontSans}`;
           ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
           ctx.shadowBlur = 4;
           ctx.shadowOffsetX = 0;
@@ -243,17 +235,17 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
           // Join the rest of the lines
           const subtitle = locationLines.slice(1).join(', ');
           ctx.fillText(subtitle, padding, currentY);
-          currentY -= 60;
+          currentY -= 65;
           
           ctx.shadowColor = 'transparent';
       }
       
-      currentY -= 10; // Gap
+      currentY -= 15; // Gap
       
       // Context text (if available) - wrap and display
       if (data.context) {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.font = `400 36px ${fontSans}`;
+          ctx.font = `400 38px ${fontSans}`;
           ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
           ctx.shadowBlur = 4;
           ctx.shadowOffsetX = 0;
@@ -265,24 +257,24 @@ export const generateShareCardImage = async (data: ShareCardData): Promise<strin
           // Draw each line from bottom to top
           for (let i = contextLines.length - 1; i >= 0; i--) {
               ctx.fillText(contextLines[i], padding, currentY);
-              currentY -= 42; // Line height
+              currentY -= 46; // Line height for text-sm with leading-relaxed
           }
           
           ctx.shadowColor = 'transparent';
-          currentY -= 10; // Gap after context
+          currentY -= 15; // Gap after context (mb-3)
       }
       
       // Location Title (City) - First line
       ctx.fillStyle = '#ffffff';
-      ctx.font = `800 96px ${fontSans}`; // Extra bold, large
+      ctx.font = `800 84px ${fontSans}`; // text-3xl font-extrabold
       ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 2;
       
       const title = locationLines[0];
-      // Auto-scale title
-      let fontSize = 96;
+      // Auto-scale title if needed
+      let fontSize = 84;
       const maxWidth = width - (padding * 2);
       while (ctx.measureText(title).width > maxWidth && fontSize > 40) {
           fontSize -= 4;

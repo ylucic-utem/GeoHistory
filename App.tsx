@@ -142,10 +142,27 @@ const App: React.FC = () => {
       // 2. Generate
       const { imageUrl, prompt } = await generateImageFromData({ conflictData: conflictData });
       
-      // Construct rich location name for conflicts/events using JSON data
-      let locationName = conflictData.place || conflictData.name || 'Unknown location';
-      if (conflictData.country) {
-        locationName += `, ${conflictData.country}`;
+      // 3. Reverse geocode to get official location name
+      const geocodeResult = await reverseGeocode(conflictData.lat, conflictData.lng);
+      const geocodedLocation = formatLocationName(geocodeResult);
+      
+      // Construct composite location name: specific event name + geocoded City/Country
+      // Prioritize the specific event name from JSON, then append standard geographical info
+      let locationName: string;
+      const eventName = conflictData.place || conflictData.name;
+      
+      if (eventName && geocodedLocation) {
+        // Combine event name with geocoded location
+        locationName = `${eventName}, ${geocodedLocation}`;
+      } else if (eventName) {
+        // Just event name if geocoding failed
+        locationName = eventName;
+      } else if (geocodedLocation) {
+        // Just geocoded location if no event name
+        locationName = geocodedLocation;
+      } else {
+        // Fallback to country if available
+        locationName = conflictData.country || 'Unknown location';
       }
       
       const newImageResult: GeneratedImageResult = { 
