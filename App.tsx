@@ -35,6 +35,10 @@ const App: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [showEvents, setShowEvents] = useState(false);
   
+  // Heritage sites data and visibility
+  const [heritageSites, setHeritageSites] = useState<any[]>([]);
+  const [showHeritageSites, setShowHeritageSites] = useState(false);
+  
   // Panel starts open on desktop, closed on mobile
   // Use useEffect to safely check window dimensions after mount
   const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
@@ -101,6 +105,29 @@ const App: React.FC = () => {
       }
     };
     loadEvents();
+  }, []);
+
+  // Load heritage sites data
+  useEffect(() => {
+    const loadHeritageSites = async () => {
+      try {
+        const response = await fetch('/whc_sites.json');
+        const data = await response.json();
+        // Filter sites that have lat and lng, and add _kind marker
+        const validSites = data
+          .filter((site: any) => site.lat !== undefined && site.lng !== undefined)
+          .map((site: any) => ({
+            ...site,
+            lat: parseFloat(site.lat),
+            lng: parseFloat(site.lng),
+            _kind: 'heritage'
+          }));
+        setHeritageSites(validSites);
+      } catch (error) {
+        console.error('Failed to load heritage sites:', error);
+      }
+    };
+    loadHeritageSites();
   }, []);
 
   const handleConflictVisualize = async (conflictData: ConflictInfo) => {
@@ -287,6 +314,8 @@ const App: React.FC = () => {
           showConflicts={showConflicts}
           events={events}
           showEvents={showEvents}
+          heritageSites={heritageSites}
+          showHeritageSites={showHeritageSites}
           onConflictVisualize={handleConflictVisualize}
         />
       ) : (
@@ -299,6 +328,8 @@ const App: React.FC = () => {
               showConflicts={showConflicts}
               events={events}
               showEvents={showEvents}
+              heritageSites={heritageSites}
+              showHeritageSites={showHeritageSites}
               onConflictVisualize={handleConflictVisualize}
             />
           )}
@@ -310,6 +341,8 @@ const App: React.FC = () => {
               showConflicts={showConflicts}
               events={events}
               showEvents={showEvents}
+              heritageSites={heritageSites}
+              showHeritageSites={showHeritageSites}
               onConflictVisualize={handleConflictVisualize}
             />
           )}
@@ -343,6 +376,8 @@ const App: React.FC = () => {
         onToggleShowConflicts={() => setShowConflicts(prev => !prev)}
         showEvents={showEvents}
         onToggleShowEvents={() => setShowEvents(prev => !prev)}
+        showHeritageSites={showHeritageSites}
+        onToggleShowHeritageSites={() => setShowHeritageSites(prev => !prev)}
       />
 
       {/* Floating Toggle Button - Visible only when panel is CLOSED */}

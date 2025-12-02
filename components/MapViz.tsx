@@ -12,16 +12,19 @@ interface MapVizProps {
   showConflicts: boolean;
   events: any[];
   showEvents: boolean;
+  heritageSites: any[];
+  showHeritageSites: boolean;
   onConflictVisualize?: (conflictData: ConflictInfo) => void;
   onEventVisualize?: (eventData: any) => void;
 }
 
-const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize, onEventVisualize }) => {
+const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, heritageSites, showHeritageSites, onConflictVisualize, onEventVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const conflictsLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
+  const heritageLayerRef = useRef<L.LayerGroup | null>(null);
   const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean; anchorLat?: number; anchorLng?: number }>({ visible: false, x: 0, y: 0, pinned: false });
   const [currentZoom, setCurrentZoom] = useState<number>(2);
   const pinnedRef = useRef<boolean>(false);
@@ -97,6 +100,9 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
 
     // Create layer group for events
     eventsLayerRef.current = L.layerGroup().addTo(map);
+
+    // Create layer group for heritage sites
+    heritageLayerRef.current = L.layerGroup().addTo(map);
 
     mapInstance.current = map;
 
@@ -258,13 +264,15 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
       
       events.forEach(event => {
         if (event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
+          const isHeritage = event._kind === 'heritage';
+          const style = isHeritage ? visualizationConfig.heritage : visualizationConfig.events;
           const marker = L.circleMarker([event.lat, event.lng], {
             radius: radius,
-            fillColor: visualizationConfig.events.fillColor,
-            color: visualizationConfig.events.color,
-            weight: visualizationConfig.events.weight,
-            opacity: visualizationConfig.events.opacity,
-            fillOpacity: visualizationConfig.events.fillOpacity
+            fillColor: style.fillColor,
+            color: style.color,
+            weight: style.weight,
+            opacity: style.opacity,
+            fillOpacity: style.fillOpacity
           }).addTo(eventsLayerRef.current!);
 
           if (!L.Browser.mobile) {
@@ -329,6 +337,7 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
               context: event.context,
               lat: event.lat,
               lng: event.lng,
+              _kind: event._kind
             });
           });
           marker.on('touchend', (e: any) => {
@@ -348,6 +357,105 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
       });
     }
   }, [events, showEvents, currentZoom]);
+
+  // Handle Heritage Site Points
+  useEffect(() => {
+    if (!mapInstance.current || !heritageLayerRef.current) return;
+
+    // Clear existing heritage markers
+    heritageLayerRef.current.clearLayers();
+
+    // Add heritage points if enabled
+    if (showHeritageSites && heritageSites.length > 0) {
+      const radius = currentZoom > visualizationConfig.zoomThreshold 
+        ? visualizationConfig.heritage.radiusZoomed 
+        : visualizationConfig.heritage.radius;
+      
+      heritageSites.forEach(site => {
+        if (site.lat != null && site.lng != null && !isNaN(site.lat) && !isNaN(site.lng)) {
+          const marker = L.circleMarker([site.lat, site.lng], {
+            radius: radius,
+            fillColor: visualizationConfig.heritage.fillColor,
+            color: visualizationConfig.heritage.color,
+            weight: visualizationConfig.heritage.weight,
+            opacity: visualizationConfig.heritage.opacity,
+            fillOpacity: visualizationConfig.heritage.fillOpacity
+          }).addTo(heritageLayerRef.current!);
+
+          if (!L.Browser.mobile) {
+            marker.on('mouseover', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              setTooltip({
+                visible: true,
+                x: ev.clientX,
+                y: ev.clientY,
+                data: {
+                  name: site.name,
+                  place: site.place,
+                  country: site.country,
+                  year: site.year,
+                  context: site.context,
+                  lat: site.lat,
+                  lng: site.lng,
+                },
+                pinned: false
+              });
+              pinnedRef.current = false;
+            });
+            marker.on('mouseout', () => {
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, visible: false }));
+              }
+            });
+            marker.on('mousemove', (e: any) => {
+              const ev = e.originalEvent as MouseEvent;
+              if (!pinnedRef.current) {
+                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
+              }
+            });
+          }
+          // Pin tooltip and place main pin on click
+          const anchorTooltip = (lat: number, lng: number, data: any) => {
+            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
+            setTooltip({
+              visible: true,
+              x: point.x,
+              y: point.y,
+              data,
+              pinned: true,
+              anchorLat: lat,
+              anchorLng: lng
+            });
+            pinnedRef.current = true;
+          };
+          marker.on('click', (e: any) => {
+            L.DomEvent.stopPropagation(e);
+            anchorTooltip(site.lat, site.lng, {
+              name: site.name,
+              place: site.place,
+              country: site.country,
+              year: site.year,
+              context: site.context,
+              lat: site.lat,
+              lng: site.lng,
+            });
+          });
+          marker.on('touchend', (e: any) => {
+            L.DomEvent.stopPropagation(e);
+            anchorTooltip(site.lat, site.lng, {
+              name: site.name,
+              place: site.place,
+              country: site.country,
+              year: site.year,
+              context: site.context,
+              lat: site.lat,
+              lng: site.lng,
+            });
+          });
+        }
+      });
+    }
+  }, [heritageSites, showHeritageSites, currentZoom]);
 
   return (
     <div className="absolute inset-0 z-0 bg-gray-900 overflow-hidden">

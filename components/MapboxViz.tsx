@@ -11,6 +11,8 @@ interface MapboxVizProps {
   showConflicts: boolean;
   events: any[];
   showEvents: boolean;
+  heritageSites: any[];
+  showHeritageSites: boolean;
   onConflictVisualize?: (conflictData: ConflictInfo) => void;
 }
 
@@ -25,7 +27,7 @@ const isWebGLSupported = (): boolean => {
   }
 };
 
-const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, onConflictVisualize }) => {
+const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, heritageSites, showHeritageSites, onConflictVisualize }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
@@ -154,7 +156,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
       }
   }, [selectedLocation]);
 
-  // Handle Conflict Points
+  // Handle Conflict Points (add or update source/layer without re-creating to avoid flicker)
   useEffect(() => {
     if (!mapInstance.current || !isStyleLoaded) return;
     const map = mapInstance.current;
@@ -162,44 +164,33 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
     const sourceId = 'conflicts-source';
     const layerId = 'conflicts-layer';
 
-    // Remove existing layer and source if they exist
-    if (map.getLayer(layerId)) {
-      map.removeLayer(layerId);
+    const validConflicts = (showConflicts ? conflicts : []).filter(conflict => 
+      conflict.lat != null && conflict.lng != null && 
+      !isNaN(conflict.lat) && !isNaN(conflict.lng)
+    );
+    const geojson: any = {
+      type: 'FeatureCollection',
+      features: validConflicts.map(conflict => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [conflict.lng, conflict.lat] },
+        properties: {
+          name: conflict.name,
+          place: conflict.country,
+          year: conflict.year,
+          context: conflict.context,
+          lat: conflict.lat,
+          lng: conflict.lng
+        }
+      }))
+    };
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, { type: 'geojson', data: geojson });
+    } else {
+      (map.getSource(sourceId) as any).setData(geojson);
     }
-    if (map.getSource(sourceId)) {
-      map.removeSource(sourceId);
-    }
 
-    // Add conflict points if enabled
-    if (showConflicts && conflicts.length > 0) {
-      const validConflicts = conflicts.filter(conflict => 
-        conflict.lat != null && conflict.lng != null && 
-        !isNaN(conflict.lat) && !isNaN(conflict.lng)
-      );
-      const geojson = {
-        type: 'FeatureCollection',
-        features: validConflicts.map(conflict => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [conflict.lng, conflict.lat]
-          },
-          properties: {
-            name: conflict.name,
-            place: conflict.country,
-            year: conflict.year,
-            context: conflict.context,
-            lat: conflict.lat,
-            lng: conflict.lng
-          }
-        }))
-      };
-
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: geojson
-      });
-
+    if (!map.getLayer(layerId)) {
       map.addLayer({
         id: layerId,
         type: 'circle',
@@ -216,6 +207,7 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
           'circle-opacity': visualizationConfig.conflicts.opacity
         }
       });
+    }
 
       const onMouseMove = (e: any) => {
         // If tooltip is pinned, don't alter visibility/position based on hover
@@ -289,56 +281,44 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         map.off('mouseleave', layerId, onMouseLeave);
         map.off('click', layerId, onClick);
       };
-    }
   }, [conflicts, showConflicts, isStyleLoaded]);
 
-  // Handle Event Points
+  // Handle Event/Heritage Points (update source data to avoid flicker, color by kind)
   useEffect(() => {
     if (!mapInstance.current || !isStyleLoaded) return;
     const map = mapInstance.current;
 
     const sourceId = 'events-source';
     const layerId = 'events-layer';
+    const validEvents = (showEvents ? events : []).filter(event => (
+      event.lat != null && event.lng != null && 
+      !isNaN(event.lat) && !isNaN(event.lng)
+    ));
+    const geojson: any = {
+      type: 'FeatureCollection',
+      features: validEvents.map(event => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [event.lng, event.lat] },
+        properties: {
+          name: event.name,
+          place: event.place,
+          country: event.country,
+          year: event.year,
+          context: event.context,
+          lat: event.lat,
+          lng: event.lng,
+          _kind: event._kind || 'events'
+        }
+      }))
+    };
 
-    // Remove existing layer and source if they exist
-    if (map.getLayer(layerId)) {
-      map.removeLayer(layerId);
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, { type: 'geojson', data: geojson });
+    } else {
+      (map.getSource(sourceId) as any).setData(geojson);
     }
-    if (map.getSource(sourceId)) {
-      map.removeSource(sourceId);
-    }
 
-    // Add event points if enabled
-    if (showEvents && events.length > 0) {
-      const validEvents = events.filter(event => 
-        event.lat != null && event.lng != null && 
-        !isNaN(event.lat) && !isNaN(event.lng)
-      );
-      const geojson = {
-        type: 'FeatureCollection',
-        features: validEvents.map(event => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [event.lng, event.lat]
-          },
-          properties: {
-            name: event.name,
-            place: event.place,
-            country: event.country,
-            year: event.year,
-            context: event.context,
-            lat: event.lat,
-            lng: event.lng
-          }
-        }))
-      };
-
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: geojson
-      });
-
+    if (!map.getLayer(layerId)) {
       map.addLayer({
         id: layerId,
         type: 'circle',
@@ -351,10 +331,17 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
             visualizationConfig.zoomThreshold,
             visualizationConfig.events.radiusZoomed
           ],
-          'circle-color': visualizationConfig.events.color,
+          'circle-color': [
+            'match',
+            ['get', '_kind'],
+            'heritage', visualizationConfig.heritage.color,
+            'events', visualizationConfig.events.color,
+            visualizationConfig.events.color
+          ],
           'circle-opacity': visualizationConfig.events.opacity
         }
       });
+    }
 
       const onMouseMove = (e: any) => {
         // If tooltip is pinned, don't alter visibility/position based on hover
@@ -430,8 +417,135 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
         map.off('mouseleave', layerId, onMouseLeave);
         map.off('click', layerId, onClick);
       };
-    }
   }, [events, showEvents, isStyleLoaded]);
+
+  // Handle Heritage Sites Points
+  useEffect(() => {
+    if (!mapInstance.current || !isStyleLoaded) return;
+    const map = mapInstance.current;
+
+    const sourceId = 'heritage-source';
+    const layerId = 'heritage-layer';
+    const validSites = (showHeritageSites ? heritageSites : []).filter(site => (
+      site.lat != null && site.lng != null && 
+      !isNaN(site.lat) && !isNaN(site.lng)
+    ));
+    const geojson: any = {
+      type: 'FeatureCollection',
+      features: validSites.map(site => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [site.lng, site.lat] },
+        properties: {
+          name: site.name,
+          place: site.place,
+          country: site.country,
+          year: site.year,
+          context: site.context,
+          lat: site.lat,
+          lng: site.lng,
+          _kind: 'heritage'
+        }
+      }))
+    };
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, { type: 'geojson', data: geojson });
+    } else {
+      (map.getSource(sourceId) as any).setData(geojson);
+    }
+
+    if (!map.getLayer(layerId)) {
+      map.addLayer({
+        id: layerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-radius': [
+            'step',
+            ['zoom'],
+            visualizationConfig.heritage.radius,
+            visualizationConfig.zoomThreshold,
+            visualizationConfig.heritage.radiusZoomed
+          ],
+          'circle-color': visualizationConfig.heritage.color,
+          'circle-opacity': visualizationConfig.heritage.opacity
+        }
+      });
+    }
+
+    const onMouseMove = (e: any) => {
+      if (pinnedRef.current) return;
+      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      if (features && features.length > 0) {
+        const f = features[0];
+        const props = f.properties || {};
+        setTooltip({
+          visible: true,
+          x: e.originalEvent.clientX,
+          y: e.originalEvent.clientY,
+          data: {
+            name: props.name,
+            place: props.place,
+            country: props.country,
+            year: props.year,
+            context: props.context,
+            lat: props.lat,
+            lng: props.lng,
+          },
+          pinned: false
+        });
+        pinnedRef.current = false;
+        map.getCanvas().style.cursor = 'pointer';
+      } else {
+        if (!pinnedRef.current) {
+          setTooltip(t => ({ ...t, visible: false }));
+        }
+        map.getCanvas().style.cursor = '';
+      }
+    };
+    const onMouseLeave = () => {
+      if (pinnedRef.current) return;
+      setTooltip(t => ({ ...t, visible: false }));
+      map.getCanvas().style.cursor = '';
+    };
+
+    const onClick = (e: any) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
+      if (features && features.length > 0) {
+        const f = features[0];
+        const props = f.properties || {};
+        const point = map.project([props.lng, props.lat]);
+        setTooltip({
+          visible: true,
+          x: point.x,
+          y: point.y,
+          data: {
+            name: props.name,
+            place: props.place,
+            country: props.country,
+            year: props.year,
+            context: props.context,
+            lat: props.lat,
+            lng: props.lng,
+          },
+          pinned: true,
+          anchorLat: props.lat,
+          anchorLng: props.lng
+        });
+        pinnedRef.current = true;
+      }
+    };
+
+    map.on('mousemove', layerId, onMouseMove);
+    map.on('mouseleave', layerId, onMouseLeave);
+    map.on('click', layerId, onClick);
+
+    return () => {
+      map.off('mousemove', layerId, onMouseMove);
+      map.off('mouseleave', layerId, onMouseLeave);
+      map.off('click', layerId, onClick);
+    };
+  }, [heritageSites, showHeritageSites, isStyleLoaded]);
 
   // Show error state if WebGL failed
   if (error) {

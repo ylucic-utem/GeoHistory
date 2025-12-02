@@ -7,8 +7,8 @@ export const visualizationConfig = {
   conflicts: {
     radius: 5,
     radiusZoomed: 10,
-    color: 'rgb(212, 2, 2)',
-    fillColor: 'rgb(212, 2, 2)',
+    color: 'rgb(255, 59, 48)', // Red
+    fillColor: 'rgb(255, 59, 48)',
     opacity: 1,
     fillOpacity: 1,
     weight: 0
@@ -18,8 +18,19 @@ export const visualizationConfig = {
   events: {
     radius: 5,
     radiusZoomed: 10,
-    color: 'rgba(6, 2, 233, 1)',
-    fillColor: 'rgba(6, 2, 233, 1)',
+    color: 'rgb(52, 199, 89)', // Green
+    fillColor: 'rgb(52, 199, 89)',
+    opacity: 1,
+    fillOpacity: 1,
+    weight: 0
+  },
+
+  // Heritage points (UNESCO)
+  heritage: {
+    radius: 5,
+    radiusZoomed: 10,
+    color: 'rgb(0, 122, 255)', // Blue
+    fillColor: 'rgb(0, 122, 255)',
     opacity: 1,
     fillOpacity: 1,
     weight: 0

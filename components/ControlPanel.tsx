@@ -1,6 +1,6 @@
 import React from 'react';
 import { Coordinates, DateSelection } from '../types';
-import { Calendar, Clock, MapPin, Loader2, Image as ImageIcon, X, Map as MapIcon, Box } from 'lucide-react';
+import { Calendar, Clock, MapPin, Loader2, Image as ImageIcon, X, Map as MapIcon, Box, Database } from 'lucide-react';
 import { visualizationConfig } from '../visualizationConfig';
 
 interface ControlPanelProps {
@@ -20,6 +20,8 @@ interface ControlPanelProps {
   onToggleShowConflicts: () => void;
   showEvents: boolean;
   onToggleShowEvents: () => void;
+  showHeritageSites: boolean;
+  onToggleShowHeritageSites: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -38,7 +40,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   showConflicts,
   onToggleShowConflicts,
   showEvents,
-  onToggleShowEvents
+  onToggleShowEvents,
+  showHeritageSites,
+  onToggleShowHeritageSites,
 }) => {
 
   const formatLat = (lat: number) => {
@@ -125,52 +129,87 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
           )}
 
-          {/* Events Toggle */}
+          {/* Datasets Section */}
           <div className="mb-4">
-            <label className="text-xs text-gray-400 uppercase tracking-wider block mb-2">Events</label>
-            <div className="space-y-3">
-              {/* Conflicts Toggle */}
-              <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+            <label className="text-xs text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+              <Database className="w-3 h-3" /> Datasets
+            </label>
+            <div className="bg-white/5 p-3 rounded-lg border border-white/10 space-y-3">
+              {/* World Conflicts Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: visualizationConfig.conflicts.color }}
+                  />
+                  <span className="text-sm text-white">World Conflicts</span>
+                </div>
                 <button
                   onClick={onToggleShowConflicts}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                  style={{
-                    backgroundColor: showConflicts ? visualizationConfig.conflicts.color : '#4b5563',
-                    boxShadow: showConflicts ? `0 0 0 2px ${visualizationConfig.conflicts.color}40` : undefined
-                  }}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    showConflicts ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      showConflicts ? 'translate-x-6' : 'translate-x-1'
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      showConflicts ? 'translate-x-4.5' : 'translate-x-0.5'
                     }`}
+                    style={{ transform: showConflicts ? 'translateX(18px)' : 'translateX(2px)' }}
                   />
                 </button>
-                <span className="text-sm text-white">
-                  {showConflicts ? 'Hide Conflicts' : 'Show Conflicts'}
-                </span>
               </div>
-              {/* Events Toggle */}
-              <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+
+              {/* World Events Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: visualizationConfig.events.color }}
+                  />
+                  <span className="text-sm text-white">World Events</span>
+                </div>
                 <button
                   onClick={onToggleShowEvents}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                  style={{
-                    backgroundColor: showEvents ? visualizationConfig.events.color : '#4b5563',
-                    boxShadow: showEvents ? `0 0 0 2px ${visualizationConfig.events.color}40` : undefined
-                  }}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    showEvents ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      showEvents ? 'translate-x-6' : 'translate-x-1'
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      showEvents ? 'translate-x-4.5' : 'translate-x-0.5'
                     }`}
+                    style={{ transform: showEvents ? 'translateX(18px)' : 'translateX(2px)' }}
                   />
                 </button>
-                <span className="text-sm text-white">
-                  {showEvents ? 'Hide Events' : 'Show Events'}
-                </span>
+              </div>
+
+              {/* World Heritage Sites Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: visualizationConfig.heritage.color }}
+                  />
+                  <span className="text-sm text-white">World Heritage Sites</span>
+                </div>
+                <button
+                  onClick={onToggleShowHeritageSites}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    showHeritageSites ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      showHeritageSites ? 'translate-x-4.5' : 'translate-x-0.5'
+                    }`}
+                    style={{ transform: showHeritageSites ? 'translateX(18px)' : 'translateX(2px)' }}
+                  />
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Events toggles moved to EventsExplorer */}
 
           {/* Location Display */}
           <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center space-x-3">
