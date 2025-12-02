@@ -1,45 +1,75 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Coordinates } from '../types';
+import { MapVisualizationProps, TooltipState } from '../types';
 import ConflictTooltip, { ConflictInfo } from './ConflictTooltip';
 import { visualizationConfig } from '../visualizationConfig';
+import { normalizeLongitude } from '../utils/coordinates';
+import { TooltipData } from '../utils/geojson';
+import {
+  populateLeafletLayer,
+  LeafletLayerCallbacks,
+  conflictDataMapper,
+  eventDataMapper,
+  heritageDataMapper,
+} from '../hooks/useLeafletDataLayer';
 
-interface MapVizProps {
-  onLocationSelect: (coords: Coordinates) => void;
-  selectedLocation: Coordinates | null;
-  conflicts: any[];
-  showConflicts: boolean;
-  events: any[];
-  showEvents: boolean;
-  heritageSites: any[];
-  showHeritageSites: boolean;
-  onConflictVisualize?: (conflictData: ConflictInfo) => void;
-  onEventVisualize?: (eventData: any) => void;
-}
-
-const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, heritageSites, showHeritageSites, onConflictVisualize, onEventVisualize }) => {
+const MapViz: React.FC<MapVisualizationProps> = ({
+  onLocationSelect,
+  selectedLocation,
+  conflicts,
+  showConflicts,
+  events,
+  showEvents,
+  heritageSites,
+  showHeritageSites,
+  onConflictVisualize,
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const conflictsLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
   const heritageLayerRef = useRef<L.LayerGroup | null>(null);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean; anchorLat?: number; anchorLng?: number }>({ visible: false, x: 0, y: 0, pinned: false });
+  const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, pinned: false });
   const [currentZoom, setCurrentZoom] = useState<number>(2);
   const pinnedRef = useRef<boolean>(false);
 
-  const handleVisualize = (data: ConflictInfo) => {
+  // Memoized handler for visualizing from tooltip
+  const handleVisualize = useCallback((data: ConflictInfo) => {
     if (onConflictVisualize && data.lat != null && data.lng != null) {
-      // Set the location to the conflict coordinates
       onLocationSelect({ lat: data.lat, lng: data.lng });
-      // Trigger conflict visualization
       onConflictVisualize(data);
-      // Hide tooltip
       setTooltip({ visible: false, x: 0, y: 0, pinned: false });
       pinnedRef.current = false;
     }
-  };
+  }, [onLocationSelect, onConflictVisualize]);
+
+  // Memoized layer callbacks
+  const getLayerCallbacks = useCallback((): LeafletLayerCallbacks => ({
+    onHover: (x: number, y: number, data: TooltipData) => {
+      if (pinnedRef.current) return;
+      setTooltip({ visible: true, x, y, data, pinned: false });
+      pinnedRef.current = false;
+    },
+    onHoverEnd: () => {
+      if (pinnedRef.current) return;
+      setTooltip(t => ({ ...t, visible: false }));
+    },
+    onHoverMove: (x: number, y: number) => {
+      if (pinnedRef.current) return;
+      setTooltip(t => ({ ...t, x, y }));
+    },
+    onPin: (x: number, y: number, data: TooltipData, lat: number, lng: number) => {
+      pinnedRef.current = true;
+      setTooltip({ visible: true, x, y, data, pinned: true, anchorLat: lat, anchorLng: lng });
+    },
+    isPinned: () => pinnedRef.current,
+    getContainerPoint: (lat: number, lng: number) => {
+      const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
+      return { x: point.x, y: point.y };
+    },
+  }), []);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -69,7 +99,7 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
       // Normalize longitude to -180 to 180
-      const normalizedLng = ((((lng + 180) % 360) + 360) % 360) - 180;
+      const normalizedLng = normalizeLongitude(lng);
       // Only place pin and hide tooltip if user clicks on map (not on marker)
       if (pinnedRef.current) {
         // Hide the anchored tooltip when placing a new pin
@@ -148,314 +178,49 @@ const MapViz: React.FC<MapVizProps> = ({ onLocationSelect, selectedLocation, con
   useEffect(() => {
     if (!mapInstance.current || !conflictsLayerRef.current) return;
 
-    // Clear existing conflict markers
-    conflictsLayerRef.current.clearLayers();
-
-    // Add conflict points if enabled
-    if (showConflicts && conflicts.length > 0) {
-      const radius = currentZoom > visualizationConfig.zoomThreshold 
-        ? visualizationConfig.conflicts.radiusZoomed 
-        : visualizationConfig.conflicts.radius;
-      
-      conflicts.forEach(conflict => {
-        if (conflict.lat != null && conflict.lng != null && !isNaN(conflict.lat) && !isNaN(conflict.lng)) {
-          const marker = L.circleMarker([conflict.lat, conflict.lng], {
-            radius: radius,
-            fillColor: visualizationConfig.conflicts.fillColor,
-            color: visualizationConfig.conflicts.color,
-            weight: visualizationConfig.conflicts.weight,
-            opacity: visualizationConfig.conflicts.opacity,
-            fillOpacity: visualizationConfig.conflicts.fillOpacity
-          }).addTo(conflictsLayerRef.current!);
-
-          if (!L.Browser.mobile) {
-            marker.on('mouseover', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              setTooltip({
-                visible: true,
-                x: ev.clientX,
-                y: ev.clientY,
-                data: {
-                  name: conflict.name,
-                  place: conflict.country,
-                  year: conflict.year,
-                  context: conflict.context,
-                  lat: conflict.lat,
-                  lng: conflict.lng,
-                },
-                pinned: false
-              });
-              pinnedRef.current = false;
-            });
-            marker.on('mouseout', () => {
-              // If pinned, ignore hover-out events to keep tooltip visible
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, visible: false }));
-              }
-            });
-            marker.on('mousemove', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
-              }
-            });
-          }
-          // Pin tooltip and place main pin on click
-          const anchorTooltip = (lat: number, lng: number, data: any) => {
-            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
-            setTooltip({
-              visible: true,
-              x: point.x,
-              y: point.y,
-              data,
-              pinned: true,
-              anchorLat: lat,
-              anchorLng: lng
-            });
-            pinnedRef.current = true;
-          };
-          marker.on('click', (e: any) => {
-            // Stop propagation to prevent map click handler from firing
-            L.DomEvent.stopPropagation(e);
-            // Touch-safe coordinate detection (not used for anchoring here but kept for robustness)
-            const oe: any = e && e.originalEvent ? e.originalEvent : undefined;
-            const clientX = oe?.clientX ?? oe?.changedTouches?.[0]?.clientX;
-            const clientY = oe?.clientY ?? oe?.changedTouches?.[0]?.clientY;
-            anchorTooltip(conflict.lat, conflict.lng, {
-              name: conflict.name,
-              place: conflict.place,
-              country: conflict.country,
-              year: conflict.year,
-              context: conflict.context,
-              lat: conflict.lat,
-              lng: conflict.lng,
-            });
-          });
-          marker.on('touchend', (e: any) => {
-            // Stop propagation to prevent map click handler from firing
-            L.DomEvent.stopPropagation(e);
-            anchorTooltip(conflict.lat, conflict.lng, {
-              name: conflict.name,
-              place: conflict.place,
-              country: conflict.country,
-              year: conflict.year,
-              context: conflict.context,
-              lat: conflict.lat,
-              lng: conflict.lng,
-            });
-          });
-        }
-      });
-    }
-  }, [conflicts, showConflicts, currentZoom]);
+    populateLeafletLayer(
+      mapInstance.current,
+      conflictsLayerRef.current,
+      conflicts,
+      showConflicts,
+      currentZoom,
+      { style: visualizationConfig.conflicts, zoomThreshold: visualizationConfig.zoomThreshold },
+      getLayerCallbacks(),
+      conflictDataMapper
+    );
+  }, [conflicts, showConflicts, currentZoom, getLayerCallbacks]);
 
   // Handle Event Points
   useEffect(() => {
     if (!mapInstance.current || !eventsLayerRef.current) return;
 
-    // Clear existing event markers
-    eventsLayerRef.current.clearLayers();
-
-    // Add event points if enabled
-    if (showEvents && events.length > 0) {
-      const radius = currentZoom > visualizationConfig.zoomThreshold 
-        ? visualizationConfig.events.radiusZoomed 
-        : visualizationConfig.events.radius;
-      
-      events.forEach(event => {
-        if (event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
-          const isHeritage = event._kind === 'heritage';
-          const style = isHeritage ? visualizationConfig.heritage : visualizationConfig.events;
-          const marker = L.circleMarker([event.lat, event.lng], {
-            radius: radius,
-            fillColor: style.fillColor,
-            color: style.color,
-            weight: style.weight,
-            opacity: style.opacity,
-            fillOpacity: style.fillOpacity
-          }).addTo(eventsLayerRef.current!);
-
-          if (!L.Browser.mobile) {
-            marker.on('mouseover', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              setTooltip({
-                visible: true,
-                x: ev.clientX,
-                y: ev.clientY,
-                data: {
-                  name: event.name,
-                  place: event.place,
-                  country: event.country,
-                  year: event.year,
-                  context: event.context,
-                  lat: event.lat,
-                  lng: event.lng,
-                },
-                pinned: false
-              });
-              pinnedRef.current = false;
-            });
-            marker.on('mouseout', () => {
-              // If pinned, ignore hover-out events to keep tooltip visible
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, visible: false }));
-              }
-            });
-            marker.on('mousemove', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
-              }
-            });
-          }
-          // Pin tooltip and place main pin on click
-          const anchorTooltip = (lat: number, lng: number, data: any) => {
-            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
-            setTooltip({
-              visible: true,
-              x: point.x,
-              y: point.y,
-              data,
-              pinned: true,
-              anchorLat: lat,
-              anchorLng: lng
-            });
-            pinnedRef.current = true;
-          };
-          marker.on('click', (e: any) => {
-            // Stop propagation to prevent map click handler from firing
-            L.DomEvent.stopPropagation(e);
-            // Touch-safe coordinate detection (not used for anchoring here but kept for robustness)
-            const oe: any = e && e.originalEvent ? e.originalEvent : undefined;
-            const clientX = oe?.clientX ?? oe?.changedTouches?.[0]?.clientX;
-            const clientY = oe?.clientY ?? oe?.changedTouches?.[0]?.clientY;
-            anchorTooltip(event.lat, event.lng, {
-              name: event.name,
-              place: event.place,
-              country: event.country,
-              year: event.year,
-              context: event.context,
-              lat: event.lat,
-              lng: event.lng,
-              _kind: event._kind
-            });
-          });
-          marker.on('touchend', (e: any) => {
-            // Stop propagation to prevent map click handler from firing
-            L.DomEvent.stopPropagation(e);
-            anchorTooltip(event.lat, event.lng, {
-              name: event.name,
-              place: event.place,
-              country: event.country,
-              year: event.year,
-              context: event.context,
-              lat: event.lat,
-              lng: event.lng,
-            });
-          });
-        }
-      });
-    }
-  }, [events, showEvents, currentZoom]);
+    populateLeafletLayer(
+      mapInstance.current,
+      eventsLayerRef.current,
+      events,
+      showEvents,
+      currentZoom,
+      { style: visualizationConfig.events, zoomThreshold: visualizationConfig.zoomThreshold },
+      getLayerCallbacks(),
+      eventDataMapper
+    );
+  }, [events, showEvents, currentZoom, getLayerCallbacks]);
 
   // Handle Heritage Site Points
   useEffect(() => {
     if (!mapInstance.current || !heritageLayerRef.current) return;
 
-    // Clear existing heritage markers
-    heritageLayerRef.current.clearLayers();
-
-    // Add heritage points if enabled
-    if (showHeritageSites && heritageSites.length > 0) {
-      const radius = currentZoom > visualizationConfig.zoomThreshold 
-        ? visualizationConfig.heritage.radiusZoomed 
-        : visualizationConfig.heritage.radius;
-      
-      heritageSites.forEach(site => {
-        if (site.lat != null && site.lng != null && !isNaN(site.lat) && !isNaN(site.lng)) {
-          const marker = L.circleMarker([site.lat, site.lng], {
-            radius: radius,
-            fillColor: visualizationConfig.heritage.fillColor,
-            color: visualizationConfig.heritage.color,
-            weight: visualizationConfig.heritage.weight,
-            opacity: visualizationConfig.heritage.opacity,
-            fillOpacity: visualizationConfig.heritage.fillOpacity
-          }).addTo(heritageLayerRef.current!);
-
-          if (!L.Browser.mobile) {
-            marker.on('mouseover', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              setTooltip({
-                visible: true,
-                x: ev.clientX,
-                y: ev.clientY,
-                data: {
-                  name: site.name,
-                  place: site.place,
-                  country: site.country,
-                  year: site.year,
-                  context: site.context,
-                  lat: site.lat,
-                  lng: site.lng,
-                },
-                pinned: false
-              });
-              pinnedRef.current = false;
-            });
-            marker.on('mouseout', () => {
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, visible: false }));
-              }
-            });
-            marker.on('mousemove', (e: any) => {
-              const ev = e.originalEvent as MouseEvent;
-              if (!pinnedRef.current) {
-                setTooltip(t => ({ ...t, x: ev.clientX, y: ev.clientY }));
-              }
-            });
-          }
-          // Pin tooltip and place main pin on click
-          const anchorTooltip = (lat: number, lng: number, data: any) => {
-            const point = mapInstance.current!.latLngToContainerPoint([lat, lng]);
-            setTooltip({
-              visible: true,
-              x: point.x,
-              y: point.y,
-              data,
-              pinned: true,
-              anchorLat: lat,
-              anchorLng: lng
-            });
-            pinnedRef.current = true;
-          };
-          marker.on('click', (e: any) => {
-            L.DomEvent.stopPropagation(e);
-            anchorTooltip(site.lat, site.lng, {
-              name: site.name,
-              place: site.place,
-              country: site.country,
-              year: site.year,
-              context: site.context,
-              lat: site.lat,
-              lng: site.lng,
-            });
-          });
-          marker.on('touchend', (e: any) => {
-            L.DomEvent.stopPropagation(e);
-            anchorTooltip(site.lat, site.lng, {
-              name: site.name,
-              place: site.place,
-              country: site.country,
-              year: site.year,
-              context: site.context,
-              lat: site.lat,
-              lng: site.lng,
-            });
-          });
-        }
-      });
-    }
-  }, [heritageSites, showHeritageSites, currentZoom]);
+    populateLeafletLayer(
+      mapInstance.current,
+      heritageLayerRef.current,
+      heritageSites,
+      showHeritageSites,
+      currentZoom,
+      { style: visualizationConfig.heritage, zoomThreshold: visualizationConfig.zoomThreshold },
+      getLayerCallbacks(),
+      heritageDataMapper
+    );
+  }, [heritageSites, showHeritageSites, currentZoom, getLayerCallbacks]);
 
   return (
     <div className="absolute inset-0 z-0 bg-gray-900 overflow-hidden">

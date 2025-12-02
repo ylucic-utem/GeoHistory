@@ -19,6 +19,40 @@ export interface ConflictData {
   lng: number;
 }
 
+// Shared tooltip state for map visualizations
+export interface TooltipState {
+  visible: boolean;
+  x: number;
+  y: number;
+  data?: {
+    name?: string;
+    place?: string;
+    country?: string;
+    year?: number | string;
+    context?: string;
+    lat?: number;
+    lng?: number;
+    _kind?: string;
+  };
+  pinned?: boolean;
+  anchorLat?: number;
+  anchorLng?: number;
+}
+
+// Shared props interface for map visualization components
+export interface MapVisualizationProps {
+  onLocationSelect: (coords: Coordinates) => void;
+  selectedLocation: Coordinates | null;
+  conflicts: any[];
+  showConflicts: boolean;
+  events: any[];
+  showEvents: boolean;
+  heritageSites: any[];
+  showHeritageSites: boolean;
+  onConflictVisualize?: (conflictData: any) => void;
+  onEventVisualize?: (eventData: any) => void;
+}
+
 export interface GeneratedImageResult {
   imageUrl: string | null;
   prompt: string;

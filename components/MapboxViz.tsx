@@ -1,20 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { Coordinates } from '../types';
+import { MapVisualizationProps, TooltipState } from '../types';
 import ConflictTooltip, { ConflictInfo } from './ConflictTooltip';
 import { visualizationConfig } from '../visualizationConfig';
-
-interface MapboxVizProps {
-  onLocationSelect: (coords: Coordinates) => void;
-  selectedLocation: Coordinates | null;
-  conflicts: any[];
-  showConflicts: boolean;
-  events: any[];
-  showEvents: boolean;
-  heritageSites: any[];
-  showHeritageSites: boolean;
-  onConflictVisualize?: (conflictData: ConflictInfo) => void;
-}
+import { buildGeoJSON, conflictPropertyMapper, eventPropertyMapper, heritagePropertyMapper, TooltipData } from '../utils/geojson';
+import { setupMapboxDataLayer, MapboxLayerCallbacks } from '../hooks/useMapboxDataLayer';
 
 // Check WebGL support
 const isWebGLSupported = (): boolean => {
@@ -27,25 +17,50 @@ const isWebGLSupported = (): boolean => {
   }
 };
 
-const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocation, conflicts, showConflicts, events, showEvents, heritageSites, showHeritageSites, onConflictVisualize }) => {
+const MapboxViz: React.FC<MapVisualizationProps> = ({
+  onLocationSelect,
+  selectedLocation,
+  conflicts,
+  showConflicts,
+  events,
+  showEvents,
+  heritageSites,
+  showHeritageSites,
+  onConflictVisualize,
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; data?: ConflictInfo; pinned?: boolean; anchorLat?: number; anchorLng?: number }>({ visible: false, x: 0, y: 0, pinned: false });
+  const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, pinned: false });
   const pinnedRef = useRef<boolean>(false);
 
-  const handleVisualize = (data: ConflictInfo) => {
+  // Memoized handler for visualizing from tooltip
+  const handleVisualize = useCallback((data: ConflictInfo) => {
     if (onConflictVisualize && data.lat != null && data.lng != null) {
-      // Set the location to the conflict coordinates
       onLocationSelect({ lat: data.lat, lng: data.lng });
-      // Trigger conflict visualization
       onConflictVisualize(data);
-      // Hide tooltip
       setTooltip({ visible: false, x: 0, y: 0, pinned: false });
     }
-  };
+  }, [onLocationSelect, onConflictVisualize]);
+
+  // Memoized layer callbacks
+  const layerCallbacks: MapboxLayerCallbacks = useMemo(() => ({
+    onHover: (x: number, y: number, data: TooltipData) => {
+      if (pinnedRef.current) return;
+      setTooltip({ visible: true, x, y, data, pinned: false });
+    },
+    onHoverEnd: () => {
+      if (pinnedRef.current) return;
+      setTooltip(t => ({ ...t, visible: false }));
+    },
+    onPin: (x: number, y: number, data: TooltipData, lat: number, lng: number) => {
+      pinnedRef.current = true;
+      setTooltip({ visible: true, x, y, data, pinned: true, anchorLat: lat, anchorLng: lng });
+    },
+    isPinned: () => pinnedRef.current,
+  }), []);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -156,396 +171,57 @@ const MapboxViz: React.FC<MapboxVizProps> = ({ onLocationSelect, selectedLocatio
       }
   }, [selectedLocation]);
 
-  // Handle Conflict Points (add or update source/layer without re-creating to avoid flicker)
+  // Handle Conflict Points
   useEffect(() => {
     if (!mapInstance.current || !isStyleLoaded) return;
     const map = mapInstance.current;
 
-    const sourceId = 'conflicts-source';
-    const layerId = 'conflicts-layer';
+    const geojson = buildGeoJSON(conflicts, showConflicts, conflictPropertyMapper);
 
-    const validConflicts = (showConflicts ? conflicts : []).filter(conflict => 
-      conflict.lat != null && conflict.lng != null && 
-      !isNaN(conflict.lat) && !isNaN(conflict.lng)
-    );
-    const geojson: any = {
-      type: 'FeatureCollection',
-      features: validConflicts.map(conflict => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [conflict.lng, conflict.lat] },
-        properties: {
-          name: conflict.name,
-          place: conflict.country,
-          year: conflict.year,
-          context: conflict.context,
-          lat: conflict.lat,
-          lng: conflict.lng
-        }
-      }))
-    };
+    return setupMapboxDataLayer(map, geojson, {
+      sourceId: 'conflicts-source',
+      layerId: 'conflicts-layer',
+      style: visualizationConfig.conflicts,
+      zoomThreshold: visualizationConfig.zoomThreshold,
+    }, layerCallbacks);
+  }, [conflicts, showConflicts, isStyleLoaded, layerCallbacks]);
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: geojson });
-    } else {
-      (map.getSource(sourceId) as any).setData(geojson);
-    }
-
-    if (!map.getLayer(layerId)) {
-      map.addLayer({
-        id: layerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          'circle-radius': [
-            'step',
-            ['zoom'],
-            visualizationConfig.conflicts.radius,
-            visualizationConfig.zoomThreshold,
-            visualizationConfig.conflicts.radiusZoomed
-          ],
-          'circle-color': visualizationConfig.conflicts.color,
-          'circle-opacity': visualizationConfig.conflicts.opacity
-        }
-      });
-    }
-
-      const onMouseMove = (e: any) => {
-        // If tooltip is pinned, don't alter visibility/position based on hover
-        if (pinnedRef.current) return;
-        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-        if (features && features.length > 0) {
-          const f = features[0];
-          const props = f.properties || {};
-          setTooltip({
-            visible: true,
-            x: e.originalEvent.clientX,
-            y: e.originalEvent.clientY,
-            data: {
-              name: props.name,
-              place: props.place,
-              year: props.year,
-              context: props.context,
-              lat: props.lat,
-              lng: props.lng,
-            },
-            pinned: false
-          });
-          pinnedRef.current = false;
-          map.getCanvas().style.cursor = 'pointer';
-        } else {
-          if (!pinnedRef.current) {
-            setTooltip(t => ({ ...t, visible: false }));
-          }
-          map.getCanvas().style.cursor = '';
-        }
-      };
-      const onMouseLeave = () => {
-        if (pinnedRef.current) return;
-        setTooltip(t => ({ ...t, visible: false }));
-        map.getCanvas().style.cursor = '';
-      };
-
-      // Click to pin tooltip and place main pin
-      const onClick = (e: any) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-        if (features && features.length > 0) {
-          const f = features[0];
-          const props = f.properties || {};
-          const point = map.project([props.lng, props.lat]);
-          setTooltip({
-            visible: true,
-            x: point.x,
-            y: point.y,
-            data: {
-              name: props.name,
-              place: props.place,
-              year: props.year,
-              context: props.context,
-              lat: props.lat,
-              lng: props.lng,
-            },
-            pinned: true,
-            anchorLat: props.lat,
-            anchorLng: props.lng
-          });
-          pinnedRef.current = true;
-        }
-      };
-
-      map.on('mousemove', layerId, onMouseMove);
-      map.on('mouseleave', layerId, onMouseLeave);
-      map.on('click', layerId, onClick);
-
-      return () => {
-        map.off('mousemove', layerId, onMouseMove);
-        map.off('mouseleave', layerId, onMouseLeave);
-        map.off('click', layerId, onClick);
-      };
-  }, [conflicts, showConflicts, isStyleLoaded]);
-
-  // Handle Event/Heritage Points (update source data to avoid flicker, color by kind)
+  // Handle Event Points
   useEffect(() => {
     if (!mapInstance.current || !isStyleLoaded) return;
     const map = mapInstance.current;
 
-    const sourceId = 'events-source';
-    const layerId = 'events-layer';
-    const validEvents = (showEvents ? events : []).filter(event => (
-      event.lat != null && event.lng != null && 
-      !isNaN(event.lat) && !isNaN(event.lng)
-    ));
-    const geojson: any = {
-      type: 'FeatureCollection',
-      features: validEvents.map(event => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [event.lng, event.lat] },
-        properties: {
-          name: event.name,
-          place: event.place,
-          country: event.country,
-          year: event.year,
-          context: event.context,
-          lat: event.lat,
-          lng: event.lng,
-          _kind: event._kind || 'events'
-        }
-      }))
-    };
+    const geojson = buildGeoJSON(events, showEvents, eventPropertyMapper);
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: geojson });
-    } else {
-      (map.getSource(sourceId) as any).setData(geojson);
-    }
-
-    if (!map.getLayer(layerId)) {
-      map.addLayer({
-        id: layerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          'circle-radius': [
-            'step',
-            ['zoom'],
-            visualizationConfig.events.radius,
-            visualizationConfig.zoomThreshold,
-            visualizationConfig.events.radiusZoomed
-          ],
-          'circle-color': [
-            'match',
-            ['get', '_kind'],
-            'heritage', visualizationConfig.heritage.color,
-            'events', visualizationConfig.events.color,
-            visualizationConfig.events.color
-          ],
-          'circle-opacity': visualizationConfig.events.opacity
-        }
-      });
-    }
-
-      const onMouseMove = (e: any) => {
-        // If tooltip is pinned, don't alter visibility/position based on hover
-        if (pinnedRef.current) return;
-        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-        if (features && features.length > 0) {
-          const f = features[0];
-          const props = f.properties || {};
-          setTooltip({
-            visible: true,
-            x: e.originalEvent.clientX,
-            y: e.originalEvent.clientY,
-            data: {
-              name: props.name,
-              place: props.place,
-              country: props.country,
-              year: props.year,
-              context: props.context,
-              lat: props.lat,
-              lng: props.lng,
-            },
-            pinned: false
-          });
-          pinnedRef.current = false;
-          map.getCanvas().style.cursor = 'pointer';
-        } else {
-          if (!pinnedRef.current) {
-            setTooltip(t => ({ ...t, visible: false }));
-          }
-          map.getCanvas().style.cursor = '';
-        }
-      };
-      const onMouseLeave = () => {
-        if (pinnedRef.current) return;
-        setTooltip(t => ({ ...t, visible: false }));
-        map.getCanvas().style.cursor = '';
-      };
-
-      // Click to pin tooltip
-      const onClick = (e: any) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-        if (features && features.length > 0) {
-          const f = features[0];
-          const props = f.properties || {};
-          const point = map.project([props.lng, props.lat]);
-          setTooltip({
-            visible: true,
-            x: point.x,
-            y: point.y,
-            data: {
-              name: props.name,
-              place: props.place,
-              country: props.country,
-              year: props.year,
-              context: props.context,
-              lat: props.lat,
-              lng: props.lng,
-            },
-            pinned: true,
-            anchorLat: props.lat,
-            anchorLng: props.lng
-          });
-          pinnedRef.current = true;
-        }
-      };
-
-      map.on('mousemove', layerId, onMouseMove);
-      map.on('mouseleave', layerId, onMouseLeave);
-      map.on('click', layerId, onClick);
-
-      return () => {
-        map.off('mousemove', layerId, onMouseMove);
-        map.off('mouseleave', layerId, onMouseLeave);
-        map.off('click', layerId, onClick);
-      };
-  }, [events, showEvents, isStyleLoaded]);
+    return setupMapboxDataLayer(map, geojson, {
+      sourceId: 'events-source',
+      layerId: 'events-layer',
+      style: visualizationConfig.events,
+      zoomThreshold: visualizationConfig.zoomThreshold,
+      colorExpression: [
+        'match',
+        ['get', '_kind'],
+        'heritage', visualizationConfig.heritage.color,
+        'events', visualizationConfig.events.color,
+        visualizationConfig.events.color,
+      ],
+    }, layerCallbacks);
+  }, [events, showEvents, isStyleLoaded, layerCallbacks]);
 
   // Handle Heritage Sites Points
   useEffect(() => {
     if (!mapInstance.current || !isStyleLoaded) return;
     const map = mapInstance.current;
 
-    const sourceId = 'heritage-source';
-    const layerId = 'heritage-layer';
-    const validSites = (showHeritageSites ? heritageSites : []).filter(site => (
-      site.lat != null && site.lng != null && 
-      !isNaN(site.lat) && !isNaN(site.lng)
-    ));
-    const geojson: any = {
-      type: 'FeatureCollection',
-      features: validSites.map(site => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [site.lng, site.lat] },
-        properties: {
-          name: site.name,
-          place: site.place,
-          country: site.country,
-          year: site.year,
-          context: site.context,
-          lat: site.lat,
-          lng: site.lng,
-          _kind: 'heritage'
-        }
-      }))
-    };
+    const geojson = buildGeoJSON(heritageSites, showHeritageSites, heritagePropertyMapper);
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: geojson });
-    } else {
-      (map.getSource(sourceId) as any).setData(geojson);
-    }
-
-    if (!map.getLayer(layerId)) {
-      map.addLayer({
-        id: layerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          'circle-radius': [
-            'step',
-            ['zoom'],
-            visualizationConfig.heritage.radius,
-            visualizationConfig.zoomThreshold,
-            visualizationConfig.heritage.radiusZoomed
-          ],
-          'circle-color': visualizationConfig.heritage.color,
-          'circle-opacity': visualizationConfig.heritage.opacity
-        }
-      });
-    }
-
-    const onMouseMove = (e: any) => {
-      if (pinnedRef.current) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-      if (features && features.length > 0) {
-        const f = features[0];
-        const props = f.properties || {};
-        setTooltip({
-          visible: true,
-          x: e.originalEvent.clientX,
-          y: e.originalEvent.clientY,
-          data: {
-            name: props.name,
-            place: props.place,
-            country: props.country,
-            year: props.year,
-            context: props.context,
-            lat: props.lat,
-            lng: props.lng,
-          },
-          pinned: false
-        });
-        pinnedRef.current = false;
-        map.getCanvas().style.cursor = 'pointer';
-      } else {
-        if (!pinnedRef.current) {
-          setTooltip(t => ({ ...t, visible: false }));
-        }
-        map.getCanvas().style.cursor = '';
-      }
-    };
-    const onMouseLeave = () => {
-      if (pinnedRef.current) return;
-      setTooltip(t => ({ ...t, visible: false }));
-      map.getCanvas().style.cursor = '';
-    };
-
-    const onClick = (e: any) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-      if (features && features.length > 0) {
-        const f = features[0];
-        const props = f.properties || {};
-        const point = map.project([props.lng, props.lat]);
-        setTooltip({
-          visible: true,
-          x: point.x,
-          y: point.y,
-          data: {
-            name: props.name,
-            place: props.place,
-            country: props.country,
-            year: props.year,
-            context: props.context,
-            lat: props.lat,
-            lng: props.lng,
-          },
-          pinned: true,
-          anchorLat: props.lat,
-          anchorLng: props.lng
-        });
-        pinnedRef.current = true;
-      }
-    };
-
-    map.on('mousemove', layerId, onMouseMove);
-    map.on('mouseleave', layerId, onMouseLeave);
-    map.on('click', layerId, onClick);
-
-    return () => {
-      map.off('mousemove', layerId, onMouseMove);
-      map.off('mouseleave', layerId, onMouseLeave);
-      map.off('click', layerId, onClick);
-    };
-  }, [heritageSites, showHeritageSites, isStyleLoaded]);
+    return setupMapboxDataLayer(map, geojson, {
+      sourceId: 'heritage-source',
+      layerId: 'heritage-layer',
+      style: visualizationConfig.heritage,
+      zoomThreshold: visualizationConfig.zoomThreshold,
+    }, layerCallbacks);
+  }, [heritageSites, showHeritageSites, isStyleLoaded, layerCallbacks]);
 
   // Show error state if WebGL failed
   if (error) {
