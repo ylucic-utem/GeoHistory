@@ -10,6 +10,10 @@
 # Obtain from https://ai.google.dev/
 # Set as environment variable GEMINI_API_KEY or in .env.local file
 
+# Python dependencies for scripts
+requests
+python-dotenv
+
 # Dependencies (managed via package.json):
 # react: ^19.2.0
 # react-dom: ^19.2.0
